@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生自主管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+    <!-- 云开发 Web SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/cloudbase-js-sdk@2.11.0/dist/cloudbase.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e88e5',
+                        secondary: '#64b5f6',
+                        accent: '#0d47a1',
+                        danger: '#e53935',
+                        success: '#43a047',
+                        warning: '#ffb300',
+                        info: '#03a9f4',
+                        rose: '#ff006e',
+                    },
+                },
+            }
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #f0f8ff;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .login-bg {
+            background: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
+            height: 100vh;
+        }
+        .seat {
+            transition: all 0.3s;
+            cursor: pointer;
+            white-space: nowrap;
+            padding: 2px;
+            font-size: 16px;
+            font-weight: 500;
+            border: 2px solid #ccc !important;
+        }
+        .seat.selected { 
+            border: 2px solid #e53935 !important; 
+            background: #ffebee; 
+        }
+        .seat.rose-bg {
+            background-color: #ff006e !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        .teacher-desk {
+            background: #d7ccc8;
+            border: 2px solid #a1887f;
+            border-radius: 6px;
+            padding: 10px 12px;
+            text-align: center;
+            margin-bottom: 6px;
+            width: 140px;
+            font-weight:bold;
+            font-size: 16px;
+        }
+        .col-label {
+            font-weight: bold;
+            color: #1e88e5;
+            text-align: center;
+            font-size: 12px;
+            padding: 2px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.5);
+            z-index:999;
+        }
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding:16px;
+            border-radius:8px;
+            width:90%;
+            max-width:700px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .disabled-btn {
+            background: #e0e0e0 !important;
+            cursor: not-allowed !important;
+            opacity: 0.6;
+            pointer-events: none !important;
+        }
+        .aisle {
+            background: #dbeafe !important;
+            border: none !important;
+            width: 46px !important;
+            max-width: 46px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            writing-mode: vertical-rl !important;
+            text-orientation: mixed !important;
+            font-size: 16px !important;
+            color: #000 !important;
+            font-weight: 900 !important;
+            z-index: 5 !important;
+            position: relative !important;
+        }
+        .chart-container {
+            width: 100%;
+            height: 380px;
+            margin: 10px 0;
+        }
+        .subject-btn {
+            padding: 6px 10px;
+            margin: 4px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: #e0e0e0;
+        }
+        .subject-btn.active {
+            background: #1e88e5;
+            color: white;
+        }
+        .tab-btn {
+            padding: 6px 12px;
+            border: none;
+            cursor: pointer;
+            background: #e0e0e0;
+            border-radius: 6px 6px 0 0;
+        }
+        .tab-btn.active {
+            background: #1e88e5;
+            color: white;
+        }
+        .tab-panel {
+            display: none;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 0 0 6px 6px;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        .rule-item {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .evidence-group {
+            margin-top: 8px;
+            padding: 8px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+        }
+        .evidence-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1e88e5;
+            margin-bottom: 6px;
+        }
+        .evidence-item {
+            margin: 4px 0;
+        }
+        .evidence-preview {
+            max-width: 100%;
+            max-height: 120px;
+            margin-top: 6px;
+            border-radius: 4px;
+            display: none;
+        }
+        .notice-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #fcfdff;
+        }
+        .notice-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .notice-author {
+            font-weight: bold;
+            color: #1e88e5;
+            font-size: 15px;
+        }
+        .notice-content {
+            margin-top: 6px;
+            padding: 6px;
+            background: #f5f9ff;
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+        .notice-time {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .notice-index {
+            font-size: 12px;
+            color: #999;
+            margin-left: 6px;
+        }
+        .import-log{
+            background:#f8f9fa;
+            padding:8px;
+            border-radius:6px;
+            max-height:200px;
+            overflow-y:auto;
+            margin-top:8px;
+            font-size:12px;
+            line-height:1.4;
+        }
+
+        #print-choice-modal .modal-content {
+            max-width: 360px;
+            text-align: center;
+            padding: 24px;
+        }
+
+        @media print {
+            * {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 1.2cm;
+            }
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important;
+            }
+            body * {
+                visibility: hidden !important;
+            }
+            #print-layout, #print-layout * {
+                visibility: visible !important;
+            }
+            #print-layout {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            #print-layout h2 {
+                text-align: center !important;
+                font-size: 24px !important;
+                font-weight: bold !important;
+                margin-bottom: 12px !important;
+            }
+            #print-layout table {
+                width: 100% !important;
+                height: 88% !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+                font-size: 16px !important;
+                font-weight: bold !important;
+                page-break-inside: avoid !important;
+            }
+            #print-layout th, 
+            #print-layout td {
+                border: 1.8px solid #222 !important;
+                text-align: center !important;
+                vertical-align: middle !important;
+                white-space: nowrap !important;
+                padding: 8px !important;
+            }
+            .no-print { 
+                display: none !important; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="login-page" class="login-bg flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+        <h2 class="text-2xl font-bold text-center text-primary mb-4">学生自主管理系统</h2>
+        <form id="login-form" class="space-y-3">
+            <div>
+                <label class="block font-medium">用户角色</label>
+                <select id="role" class="w-full border p-2 rounded text-sm">
+                    <option value="visitor">学生</option>
+                    <option value="monitor">班长</option>
+                    <option value="teacher">教师</option>
+                    <option value="teacher_in_charge">班主任</option>
+                    <option value="admin">管理员</option>
+                    <option value="developer">开发者</option>
+                </select>
+            </div>
+            <div id="username-field" class="hidden">
+                <label class="block font-medium">用户名</label>
+                <input type="text" id="username" class="w-full border p-2 rounded text-sm">
+            </div>
+            <div id="password-field" class="hidden">
+                <label class="block font-medium">密码</label>
+                <input type="password" id="password" class="w-full border p-2 rounded text-sm">
+            </div>
+            <button type="submit" class="w-full bg-primary text-white p-2 rounded">登录</button>
+            <button type="button" id="go-register" class="w-full bg-success text-white p-2 rounded">注册账号</button>
+        </form>
+        <div class="text-xs text-gray-500 mt-2 text-center">
+            班主任初始密码：123456<br>班长默认密码：123456
+        </div>
+    </div>
+</div>
+
+<div id="register-page" class="hidden login-bg flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+        <h2 class="text-xl font-bold mb-3 text-primary">用户注册</h2>
+        <form id="reg-form" class="space-y-2">
+            <div>
+                <label class="block text-sm">角色</label>
+                <select id="reg-role" class="w-full border p-1 rounded text-sm">
+                    <option value="teacher">教师</option>
+                    <option value="teacher_in_charge">班主任</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <div id="reg-team-name" class="hidden">
+                <label class="block text-sm">团队名称</label>
+                <input type="text" id="reg-team" class="w-full border p-1 rounded text-sm" placeholder="请输入团队/班级名称">
+            </div>
+            <div id="reg-team-select" class="hidden">
+                <label class="block text-sm">选择加入的团队</label>
+                <select id="reg-join-team" class="w-full border p-1 rounded text-sm">
+                    <option value="">请选择团队</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm">用户名</label>
+                <input type="text" id="reg-user" class="w-full border p-1 rounded text-sm">
+            </div>
+            <div>
+                <label class="block text-sm">密码</label>
+                <input type="password" id="reg-pwd" class="w-full border p-1 rounded text-sm">
+            </div>
+            <button type="submit" class="w-full bg-success text-white p-2 rounded">注册</button>
+            <button type="button" id="back-login" class="w-full bg-gray-500 text-white p-2 rounded">返回登录</button>
+        </form>
+    </div>
+</div>
+
+<div id="monitor-auth-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3 text-center">🔑 班长账号授权</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">班长用户名</label>
+                <input type="text" id="monitor-name" class="w-full border p-2 rounded" placeholder="请输入班长姓名">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">登录密码</label>
+                <input type="text" id="monitor-pwd" class="w-full border p-2 rounded" placeholder="请设置登录密码" value="123456">
+                <p class="text-xs text-gray-500 mt-1">默认密码：123456，可自定义修改</p>
+            </div>
+            <button id="save-monitor-auth" class="w-full bg-primary text-white p-2 rounded">确认授权</button>
+            <button onclick="closeModal('#monitor-auth-modal')" class="w-full bg-gray-500 text-white p-2 rounded">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="admin-select-class-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-4">🏫 选择班级</h3>
+        <select id="admin-class-select" class="w-full border p-2 rounded mb-4"></select>
+        <button onclick="adminSwitchClass()" class="w-full bg-primary text-white p-2 rounded">确认进入</button>
+    </div>
+</div>
+
+<div id="batch-create-user-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-4">📝 批量创建教师/班主任账号</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block font-medium">创建数量</label>
+                <input type="number" id="batch-count" value="5" min="1" max="50" class="w-full border p-2 rounded">
+            </div>
+            <div>
+                <label class="block font-medium">账户角色</label>
+                <select id="batch-role" class="w-full border p-2 rounded">
+                    <option value="teacher">教师</option>
+                    <option value="teacher_in_charge">班主任</option>
+                </select>
+            </div>
+            <div>
+                <label class="block font-medium">归属班级</label>
+                <input type="text" id="batch-team" readonly class="w-full border p-2 rounded bg-gray-100">
+            </div>
+            <button onclick="doBatchCreateUsers()" class="w-full bg-success text-white p-2 rounded">✅ 批量生成账号</button>
+            <button onclick="exportBatchAccountList()" class="w-full bg-info text-white p-2 rounded mt-2">📄 导出账号清单</button>
+        </div>
+        <div id="batch-result" class="mt-4 p-3 bg-gray-50 rounded text-sm max-h-60 overflow-y-auto"></div>
+    </div>
+</div>
+
+<div id="bind-class-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-4">🔗 绑定/解绑 班级座次表</h3>
+        
+        <div class="space-y-3">
+            <div>
+                <label class="block font-medium mb-1">选择团队/班级</label>
+                <select id="bind-team-select" class="w-full border p-2 rounded"></select>
+            </div>
+            <div>
+                <label class="block font-medium mb-1">绑定登录账号</label>
+                <input type="text" id="bind-username" class="w-full border p-2 rounded" placeholder="请输入要绑定的账号">
+                <p class="text-xs text-gray-500">该账号登录后自动加载本班座次表</p>
+            </div>
+            <button onclick="doBindSeatToUser()" class="w-full bg-success text-white p-2 rounded">✅ 确认绑定</button>
+        </div>
+
+        <hr class="my-4">
+
+        <div>
+            <h4 class="font-bold text-danger mb-2">❌ 解绑已绑定用户</h4>
+            <div id="bind-user-list" class="border rounded p-2 max-h-40 overflow-y-auto mb-2 text-sm"></div>
+            <button onclick="refreshBindUserList()" class="w-full bg-info text-white p-2 rounded mb-2">🔄 刷新已绑定列表</button>
+        </div>
+
+        <button onclick="closeModal('#bind-class-modal')" class="w-full bg-gray-500 text-white p-2 rounded mt-2">关闭</button>
+    </div>
+</div>
+
+<div id="main-page" class="hidden h-screen flex flex-col p-2">
+    <header class="bg-primary text-white p-2 rounded flex justify-between items-center flex-shrink-0">
+        <div>
+            <h1 class="text-lg font-bold">学生自主管理系统</h1>
+            <p class="text-xs mt-1">欢迎使用学生自主管理系统2.0</p>
+        </div>
+        <div class="text-sm flex flex-col items-end">
+            <span id="current-user">游客</span>
+            <span id="real-time" class="text-xs mt-1"></span>
+            <button id="switch-class-btn" class="hidden ml-2 bg-white text-primary px-2 py-1 rounded text-xs mt-1">切换班级</button>
+            <button id="logout-btn" class="ml-2 bg-white text-primary px-2 py-1 rounded text-xs mt-1">退出</button>
+        </div>
+    </header>
+
+    <div class="bg-white rounded shadow p-2 my-2 flex-1 min-h-0 flex flex-col">
+        <div class="flex justify-between items-center mb-2 flex-shrink-0">
+            <div class="text-base font-bold text-primary" id="class-name">初三(1)班</div>
+            <div class="flex gap-2">
+                <button id="config-btn" class="hidden bg-accent text-white px-2 py-1 rounded text-xs"><i class="fa fa-cog"></i> 座次表设置</button>
+                <button id="import-btn" class="hidden bg-success text-white px-2 py-1 rounded text-xs"><i class="fa fa-upload"></i> 导入数据</button>
+                <button id="monitor-auth-btn" class="hidden bg-info text-white px-2 py-1 rounded text-xs"><i class="fa fa-user-plus"></i> 班长授权</button>
+                <button id="batch-create-btn" class="hidden bg-success text-white px-2 py-1 rounded text-xs"><i class="fa fa-users"></i> 批量建账号</button>
+                <button id="user-manage-btn" class="hidden bg-rose text-white px-2 py-1 rounded text-xs"><i class="fa fa-users"></i> 用户管理</button>
+                
+                <button id="save-seat-btn" class="hidden bg-success text-white px-2 py-1 rounded text-xs"><i class="fa fa-save"></i> 保存座次</button>
+                <button id="bind-seat-btn" class="hidden bg-warning text-white px-2 py-1 rounded text-xs"><i class="fa fa-link"></i> 绑定班级</button>
+                
+                <button id="red-light-btn" class="bg-danger text-white px-2 py-1 rounded text-xs"><i class="fa fa-exclamation-circle"></i> 点亮红灯</button>
+                <button id="clear-btn" class="bg-gray-500 text-white px-2 py-1 rounded text-xs"><i class="fa fa-refresh"></i> 清屏</button>
+                <button id="view-quan-file-btn" class="hidden bg-warning text-white px-2 py-1 rounded text-xs"><i class="fa fa-file-text-o"></i> 量化档案</button>
+            </div>
+        </div>
+
+        <div class="teacher-desk mx-auto">讲 台</div>
+        <div id="col-header" class="grid gap-1 mb-1 flex-shrink-0"></div>
+        <div id="seat-grid" class="grid gap-1 flex-1"></div>
+    </div>
+
+    <div class="grid grid-cols-7 gap-1 mt-2 flex-shrink-0">
+        <button id="scores-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-bar-chart text-primary"></i><br>成绩</button>
+        <button id="quantification-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-star text-warning"></i><br>量化</button>
+        <button id="change-seats-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-exchange text-info"></i><br>换座</button>
+        <button id="statistics-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-line-chart text-success"></i><br>统计</button>
+        <button id="growth-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-area-chart text-accent"></i><br>曲线</button>
+        <button id="contact-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-address-book"></i><br>通讯</button>
+        <button id="announcement-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-bullhorn text-danger"></i><br>公告</button>
+    </div>
+</div>
+
+<div id="user-manage-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-4">👥 用户管理中心</h3>
+        <div id="user-list" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
+        <button class="mt-4 bg-gray-500 text-white p-2 rounded w-full" onclick="closeModal('#user-manage-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="announcement-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-4">📢 班级公告</h3>
+        <div class="flex gap-2 mb-4">
+            <button id="edit-notice-btn" class="flex-1 bg-info text-white p-2 rounded">
+                <i class="fa fa-pencil"></i> 编辑公告
+            </button>
+            <div class="flex flex-1 gap-2">
+                <input type="number" id="del-index" placeholder="输入序号" class="flex-1 border p-2 rounded">
+                <button id="del-notice" class="bg-danger text-white px-3 rounded">删除</button>
+            </div>
+        </div>
+        <div id="notice-list" class="max-h-[500px] overflow-y-auto space-y-2"></div>
+        <button class="mt-4 bg-gray-500 text-white p-2 rounded w-full" onclick="closeModal('#announcement-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="edit-notice-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary text-center mb-3">✍️ 发布新公告</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">1. 上传头像/拍照（必须）</label>
+                <input type="file" id="edit-avatar" accept="image/*" capture="camera" class="w-full border p-2 rounded">
+                <p class="text-xs text-gray-500 mt-1">可直接拍照或从相册选择，为安全必须上传</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">2. 署名（必须）</label>
+                <input type="text" id="edit-author" placeholder="请输入姓名/身份" class="w-full border p-2 rounded">
+                <p class="text-xs text-gray-500">为安全必须填写真实署名</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">3. 公告内容</label>
+                <textarea id="edit-content" rows="4" placeholder="请输入通知内容..." class="w-full border p-2 rounded"></textarea>
+            </div>
+            <button id="submit-edit" class="w-full bg-primary text-white p-2 rounded">确认发送公告</button>
+            <button onclick="closeModal('#edit-notice-modal')" class="w-full bg-gray-500 text-white p-2 rounded">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="score-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3">学生成绩</h3>
+        <div id="score-info" class="text-sm space-y-2"></div>
+        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#score-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="contact-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3">学生通讯信息</h3>
+        <div id="contact-info" class="text-sm space-y-2"></div>
+        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#contact-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="growth-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3">学生成绩曲线走势图</h3>
+        <div id="subject-tabs" class="mb-3 flex flex-wrap"></div>
+        <div id="growth-info" class="text-sm mb-3"></div>
+        <div class="chart-container">
+            <canvas id="scoreChart"></canvas>
+        </div>
+        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#growth-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="config-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold mb-2">座次表设置</h3>
+        <div class="space-y-2 text-sm">
+            <div>班级名称：<input type="text" id="cfg-classname" value="初三(1)班" class="w-32 border p-1"></div>
+            <div>行数：<input type="number" id="cfg-rows" value="6" class="w-16 border p-1"></div>
+            <div>学生列数（过道不算）：<input type="number" id="cfg-cols" value="6" class="w-16 border p-1"></div>
+            <div>过道位置（<span class="text-danger">请使用英文逗号</span>分隔）：<input id="cfg-aisles" value="2" class="w-32 border p-1" placeholder="例：2（英文逗号）"></div>
+            <button id="smart-seat-btn" class="bg-success text-white px-2 py-1 rounded">🤖 智能AI排座</button>
+            <button id="print-seat-btn" class="bg-info text-white px-2 py-1 rounded"><i class="fa fa-print"></i> 打印座次表</button>
+            <button id="save-config" class="bg-primary text-white px-2 py-1 rounded">保存并刷新</button>
+        </div>
+    </div>
+</div>
+
+<div id="print-layout" class="hidden p-4"></div>
+<div id="print-choice-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="font-bold text-primary mb-6">请选择打印视角</h3>
+        <div class="flex gap-4 justify-center">
+            <button id="print-student-btn" class="bg-primary text-white px-6 py-3 rounded text-lg">学生视角</button>
+            <button id="print-teacher-btn" class="bg-success text-white px-6 py-3 rounded text-lg">教师视角</button>
+        </div>
+        <p class="text-xs text-gray-500 mt-4">学生视角：学生面向讲台<br>教师视角：讲台面向学生</p>
+    </div>
+</div>
+
+<div id="smart-seat-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-success mb-3">🤖 AI智能自动排座</h3>
+        <div class="space-y-3 text-sm">
+            <div class="border p-2 rounded">
+                <label class="font-bold text-primary block mb-1">优先排序因素（可多选）</label>
+                <label class="mr-2"><input type="checkbox" class="factor" value="score"> 成绩</label>
+                <label class="mr-2"><input type="checkbox" class="factor" value="height"> 身高</label>
+                <label class="mr-2"><input type="checkbox" class="factor" value="gender"> 性别</label>
+                <label class="mr-2"><input type="checkbox" class="factor" value="quan"> 量化积分</label>
+            </div>
+            <div class="border p-2 rounded">
+                <label class="font-bold text-primary block mb-1">性别座位规则</label>
+                <select id="gender-rule" class="border p-1">
+                    <option value="none">无限制</option>
+                    <option value="separate">男女不同位</option>
+                    <option value="pair">男女同位</option>
+                </select>
+            </div>
+            <div class="border p-2 rounded">
+                <label class="font-bold text-primary block mb-1">必须相邻（姓名1,姓名2）</label>
+                <input id="must-together" class="w-full border p-1" placeholder="例：张三,李四">
+            </div>
+            <div class="border p-2 rounded">
+                <label class="font-bold text-primary block mb-1">禁止相邻（姓名1,姓名2）</label>
+                <input id="must-together" class="w-full border p-1" placeholder="例：王五,赵六">
+            </div>
+            <button id="run-smart-seat" class="bg-success text-white p-2 rounded w-full">✅ 执行AI智能排座</button>
+            <button onclick="closeModal('#smart-seat-modal')" class="bg-gray-500 text-white p-2 rounded w-full">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="import-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold mb-2">数据导入</h3>
+        <div class="space-y-2">
+            <input type="file" id="import-stu-input" accept=".txt,.xls,.xlsx,.et" class="hidden">
+            <button onclick="triggerImportStudent()" class="bg-primary text-white p-2 rounded w-full">导入学生名单</button>
+
+            <input type="file" id="import-score-input" accept=".txt,.xls,.xlsx,.et" class="hidden">
+            <button onclick="triggerImportScore()" class="bg-primary text-white p-2 rounded w-full">导入月考成绩</button>
+
+            <input type="file" id="import-contact-input" accept=".txt,.xls,.xlsx,.et" class="hidden">
+            <button onclick="openContactImportChoice()" class="bg-primary text-white p-2 rounded w-full">导入通讯信息</button>
+
+            <button id="rule-set-btn" class="bg-danger text-white p-2 rounded w-full">违纪量化标准</button>
+        </div>
+    </div>
+</div>
+
+<div id="rule-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-danger mb-2">⚠️ 违纪量化设置（班主任专用）</h3>
+        <div id="rule-list" class="space-y-2"></div>
+        <button id="add-rule" class="bg-info text-white px-2 py-1 rounded text-xs mt-1">+ 添加违纪项</button>
+        <button id="save-rule" class="bg-primary text-white px-3 py-1 rounded w-full mt-3">保存设置</button>
+    </div>
+</div>
+
+<div id="red-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary">打卡统计</h3>
+        <div id="red-stats" class="my-3 text-sm leading-7"></div>
+        <button id="close-red" class="bg-primary text-white px-3 py-1 rounded">关闭</button>
+    </div>
+</div>
+
+<div id="quan-modal" class="modal">
+    <div class="modal-content" style="max-width:500px; margin:10% auto;">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3 text-center">学生即时量化</h3>
+        <div id="quan-student-name" class="text-center text-lg font-bold mb-3"></div>
+        <div class="mb-3">
+            <label class="block mb-1 font-medium">选择违纪类别</label>
+            <select id="rule-select" class="w-full border p-2 rounded"></select>
+        </div>
+        <div class="mb-3">
+            <label class="block mb-1 font-medium">违纪说明（选填）</label>
+            <input id="rule-desc" class="w-full border p-2 rounded" placeholder="补充说明">
+        </div>
+        <div class="evidence-group">
+            <div class="evidence-title">📎 证据材料（可不上传）</div>
+            <div class="evidence-item">
+                <input type="file" id="evidence-file" accept="image/*,audio/*,video/*" class="w-full text-sm">
+            </div>
+            <img id="evidence-preview" class="evidence-preview">
+            <video id="evidence-video" class="evidence-preview" controls></video>
+            <audio id="evidence-audio" class="evidence-preview mt-2" controls>
+        </div>
+        <div class="mt-3 flex gap-2">
+            <button class="tab-btn active" data-tab="score">扣分分值</button>
+            <button class="tab-btn" data-tab="info">个人量化统计</button>
+        </div>
+        <div id="tab-score" class="tab-panel active">
+            <p class="text-danger font-bold" id="current-score"></p>
+        </div>
+        <div id="tab-info" class="tab-panel active">
+            <div id="student-quan-info" class="space-y-2 text-sm"></div>
+        </div>
+        <div class="mt-3 flex gap-2">
+            <button id="save-quan" class="flex-1 bg-danger text-white p-2 rounded">确认扣分</button>
+            <button onclick="closeModal('#quan-modal')" class="flex-1 bg-gray-500 text-white p-2 rounded">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="quan-file-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3">班级量化档案云文件</h3>
+        <div id="quan-file-list" class="space-y-2 text-sm"></div>
+        <button class="mt-3 bg-gray-500 text-white px-3 py-1 rounded w-full" onclick="closeModal('#quan-file-modal')">关闭</button>
+    </div>
+</div>
+
+<div id="contact-edit-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 class="font-bold text-primary mb-3 text-center">通讯信息录入/编辑</h3>
+        <div class="space-y-2 text-sm">
+            <div><label>姓名：</label><input id="contact-name" readonly class="border p-1 w-full"></div>
+            <div><label>性别：</label><input id="contact-gender" class="border p-1 w-full"></div>
+            <div><label>年龄：</label><input id="contact-age" class="border p-1 w-full"></div>
+            <div><label>家庭住址：</label><input id="contact-address" class="border p-1 w-full"></div>
+            <div><label>身份证号：</label><input id="contact-idcard" class="border p-1 w-full"></div>
+            <div><label>第一监护人电话：</label><input id="contact-guard1" class="border p-1 w-full"></div>
+            <div><label>第二监护人电话：</label><input id="contact-guard2" class="border p-1 w-full"></div>
+            <div>
+                <label>半身像：</label>
+                <input type="file" id="contact-photo" accept="image/*" class="w-full">
+                <img id="contact-photo-preview" style="max-height:120px; margin-top:6px; display:none;">
+            </div>
+            <div><label>备注：</label><textarea id="contact-remark" rows="2" class="border p-1 w-full"></textarea></div>
+            <button id="save-contact-info" class="bg-success text-white p-2 rounded w-full">保存信息</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==============================================
+// 【1】手动填写：你的微信云开发环境ID
+// ==============================================
+const CLOUD_ENV = "【在这里粘贴你的云开发环境ID】";
+
+// 初始化云开发
+const cloudApp = cloudbase.init({ env: CLOUD_ENV });
+const db = cloudApp.database();
+const _ = db.command;
+
+let currentUser = null;
+let selectedStudents = [];
+let students = [];
+let classConfig = { 
+    className:"初三(1)班", 
+    rows:6, cols:6, aisles:[2],
+    rules: [
+        {name:"迟到", score:-2},
+        {name:"早退", score:-2},
+        {name:"旷课", score:-5},
+        {name:"讲话", score:-1},
+        {name:"睡觉", score:-3},
+        {name:"未交作业", score:-2}
+    ]
+};
+let scoreChart = null;
+let currentStudent = null;
+let currentSubject = "语文";
+let evidenceFile = null;
+let evidenceType = null;
+
+let noticeList = [];
+const subjectMap = {};
+const classAvgData = {};
+let batchAccountList = [];
+
+// 云端集合名称
+const COLLECTION = {
+    USERS: "system_users",
+    STUDENTS: "system_students",
+    CONFIG: "system_config",
+    NOTICES: "system_notices",
+    BIND: "system_bind"
+};
+
+// ==============================================
+// 云端统一读写方法
+// ==============================================
+async function cloudGet(collection, docId) {
+    try {
+        const res = await db.collection(collection).doc(docId).get();
+        return res.data?.data || null;
+    } catch (e) {
+        console.error("cloudGet", e);
+        return null;
+    }
+}
+
+async function cloudSet(collection, docId, data) {
+    try {
+        await db.collection(collection).doc(docId).set({ data });
+        return true;
+    } catch (e) {
+        console.error("cloudSet", e);
+        alert("保存到云端失败：" + e.message);
+        return false;
+    }
+}
+
+// ==============================================
+// 加载/保存 替换 localStorage
+// ==============================================
+async function loadSystemDataFromCloud() {
+    const team = currentUser?.teamName || "default";
+    const docId = `data_${team}`;
+
+    // 用户列表
+    const users = await cloudGet(COLLECTION.USERS, "all_users");
+    if (users) userList = users;
+
+    // 班级配置
+    const config = await cloudGet(COLLECTION.CONFIG, docId);
+    if (config) classConfig = config;
+
+    // 学生数据
+    const stuData = await cloudGet(COLLECTION.STUDENTS, docId);
+    if (stuData) students = stuData;
+
+    // 公告
+    const notices = await cloudGet(COLLECTION.NOTICES, docId);
+    if (notices) noticeList = notices;
+
+    // 绑定关系
+    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind");
+    if (bindMap) window._bindMap = bindMap;
+}
+
+async function saveSystemDataToCloud(key, data) {
+    const team = currentUser?.teamName || "default";
+    const docId = `data_${team}`;
+
+    switch (key) {
+        case "system_users":
+            return cloudSet(COLLECTION.USERS, "all_users", data);
+        case "system_config":
+            return cloudSet(COLLECTION.CONFIG, docId, data);
+        case "system_students":
+            return cloudSet(COLLECTION.STUDENTS, docId, data);
+        case "system_notices":
+            return cloudSet(COLLECTION.NOTICES, docId, data);
+        case "user_bind":
+            return cloudSet(COLLECTION.BIND, "user_bind", data);
+    }
+}
+
+// ==============================================
+// 初始化默认用户（首次运行）
+// ==============================================
+async function initDefaultUsersIfEmpty() {
+    const users = await cloudGet(COLLECTION.USERS, "all_users");
+    if (users && users.length > 0) {
+        userList = users;
+        return;
+    }
+    const defaultUsers = [
+        { role: 'teacher_in_charge', username: '班主任', pwd: '123456', isDefault: true, status: 'normal', manager: 'developer', teamName: '默认团队' },
+        { role: 'monitor', username: '班长', pwd: '123456', status: 'normal', manager: 'developer', teamName: '默认团队' },
+        { role: 'developer', username: '开发者', pwd: 'kph1234@sina.com', status: 'normal', manager: 'none', teamName: '系统' }
+    ];
+    await cloudSet(COLLECTION.USERS, "all_users", defaultUsers);
+    userList = defaultUsers;
+}
+
+// ==============================================
+// 下面是你原来的所有逻辑，全部保留正常运行
+// ==============================================
+const DEVELOPER_PWD = 'kph1234@sina.com';
+
+function random6Code() {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let res = '';
+    for (let i = 0; i < 6; i++) {
+        res += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return res;
+}
+
+function randomPassword() {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*';
+    let res = '';
+    for (let i = 0; i < 8; i++) {
+        res += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return res;
+}
+
+// 绑定逻辑（云端版）
+async function refreshBindUserList() {
+    const container = document.getElementById('bind-user-list');
+    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+    container.innerHTML = '';
+    if (Object.keys(bindMap).length === 0) {
+        container.innerHTML = '<div class="text-gray-500 text-center">暂无绑定用户</div>';
+        return;
+    }
+    for (let username in bindMap) {
+        const team = bindMap[username];
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center border-b pb-1 mb-1';
+        item.innerHTML = `
+            <span>${username} → ${team}</span>
+            <button onclick="unbindUser('${username}')" class="bg-danger text-white px-2 py-1 rounded text-xs">解绑</button>
+        `;
+        container.appendChild(item);
+    }
+}
+
+async function unbindUser(username) {
+    if (!confirm(`确定解绑用户【${username}】吗？`)) return;
+    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+    delete bindMap[username];
+    await saveSystemDataToCloud("user_bind", bindMap);
+    await refreshBindUserList();
+    alert(`✅ 用户【${username}】已解绑`);
+}
+
+async function doBindSeatToUser() {
+    const targetTeam = document.getElementById('bind-team-select').value;
+    const targetUser = document.getElementById('bind-username').value.trim();
+    if (!targetTeam || !targetUser) {
+        alert('请选择班级并输入账号！');
+        return;
+    }
+    const findUser = userList.find(u => u.username === targetUser);
+    if (!findUser) {
+        alert('该账号不存在！');
+        return;
+    }
+    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+    bindMap[targetUser] = targetTeam;
+    await saveSystemDataToCloud("user_bind", bindMap);
+    alert(`✅ 绑定成功！\n账号【${targetUser}】登录自动加载【${targetTeam}】座次表`);
+    await refreshBindUserList();
+}
+
+// 时间
+function updateRealTime() {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
+    const hh = String(now.getHours()).padStart(2, 0);
+    const mm = String(now.getMinutes()).padStart(2, 0);
+    const ss = String(now.getSeconds()).padStart(2, 0);
+    const w = '日一二三四五六'[now.getDay()];
+    document.getElementById('real-time').textContent = `${y}-${m}-${d} ${hh}:${mm}:${ss} 周${w}`;
+}
+setInterval(updateRealTime, 1000);
+
+function getRealDisplayCols() {
+    return classConfig.cols + classConfig.aisles.length;
+}
+
+function initStudents(blank = false) {
+    if (students.length > 0 && !blank) return;
+    students = [];
+    let idx = 0;
+    const rows = classConfig.rows;
+    const studentCols = classConfig.cols;
+    const aisles = classConfig.aisles;
+
+    for (let
