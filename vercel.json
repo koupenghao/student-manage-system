@@ -2,5 +2,5 @@
   "buildCommand": "",
   "outputDirectory": ".",
   "installCommand": "",
-  "framework": "static"
+  "framework": "your_framework_name"
 }
