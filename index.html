@@ -773,7 +773,7 @@
 // ==============================================
 // 【1】手动填写：你的微信云开发环境ID
 // ==============================================
-const CLOUD_ENV = "【在这里粘贴你的云开发环境ID】";
+const CLOUD_ENV = "wx6aec3501e11e40b7";
 
 // 初始化云开发
 const cloudApp = cloudbase.init({ env: CLOUD_ENV });
@@ -999,4 +999,489 @@ function initStudents(blank = false) {
     const studentCols = classConfig.cols;
     const aisles = classConfig.aisles;
 
-    for (let
+    for (let let r = 1; r <= rows; r++) {
+        let realCol = 1;
+        for (let sc = 1; sc <= studentCols; sc++) {
+            while (aisles.includes(realCol)) {
+                realCol++;
+            }
+            const stu = {
+                id: 's' + idx,
+                name: blank ? '' : `学生${idx + 1}`,
+                seat: { row: r, col: realCol },
+                red: 0, firstTime: '',
+                score: {},
+                contact: {
+                    gender: '', age: '', address: '', idcard: '', guard1: '', guard2: '', photo: '', remark: '', height: 160 + Math.floor(Math.random() * 20)
+                },
+                isRose: false,
+                quanTotal: 100,
+                quanRecords: []
+            };
+            students.push(stu);
+            idx++;
+            realCol++;
+        }
+    }
+    saveSystemDataToCloud('system_students', students);
+}
+
+function renderCols() {
+    const wrap = document.getElementById('col-header');
+    wrap.innerHTML = '';
+    const realDisplayCols = getRealDisplayCols();
+    const cols = ['40px'];
+    for (let i = 1; i <= realDisplayCols; i++) {
+        if (classConfig.aisles.includes(i)) {
+            cols.push('46px');
+        } else {
+            cols.push('1fr');
+        }
+    }
+    cols.push('40px');
+    wrap.style.gridTemplateColumns = cols.join(' ');
+    wrap.appendChild(document.createElement('div'));
+
+    let realSeatCol = 1;
+    for (let i = 1; i <= realDisplayCols; i++) {
+        if (classConfig.aisles.includes(i)) {
+            wrap.appendChild(document.createElement('div'));
+        } else {
+            const div = document.createElement('div');
+            div.className = 'col-label';
+            div.textContent = `第${realSeatCol}列`;
+            wrap.appendChild(div);
+            realSeatCol++;
+        }
+    }
+    wrap.appendChild(document.createElement('div'));
+}
+
+function renderSeats() {
+    const grid = document.getElementById('seat-grid');
+    grid.innerHTML = '';
+    const realDisplayCols = getRealDisplayCols();
+    const rows = classConfig.rows;
+
+    const gridCols = ['40px'];
+    for (let i = 1; i <= realDisplayCols; i++) {
+        if (classConfig.aisles.includes(i)) {
+            gridCols.push('46px');
+        } else {
+            gridCols.push('1fr');
+        }
+    }
+    gridCols.push('40px');
+    grid.style.gridTemplateColumns = gridCols.join(' ');
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    for (let i = 1; i <= realDisplayCols; i++) {
+        if (classConfig.aisles.includes(i)) {
+            const aisle = document.createElement('div');
+            aisle.className = 'aisle';
+            aisle.style.gridColumn = i + 1;
+            aisle.style.gridRow = `1 / span ${rows}`;
+            aisle.innerText = "过道";
+            grid.appendChild(aisle);
+        }
+    }
+
+    for (let r = 1; r <= rows; r++) {
+        const left = document.createElement('div');
+        left.className = 'flex items-center justify-center font-bold text-primary text-sm';
+        left.textContent = r + '排';
+        grid.appendChild(left);
+
+        for (let c = 1; c <= realDisplayCols; c++) {
+            if (classConfig.aisles.includes(c)) continue;
+            const stu = students.find(s => s.seat.row == r && s.seat.col == c);
+            const d = document.createElement('div');
+            d.className = `seat flex items-center justify-center rounded border`;
+
+            if (stu) {
+                if (stu.red > 0) { d.style.background = "#e53935"; d.style.color = "#ffd700"; d.style.fontWeight = "bold"; }
+                if (selectedStudents.some(s => s.id === stu.id)) d.classList.add('selected');
+                if (stu.isRose) d.classList.add('rose-bg');
+                d.innerHTML = `<div class="text-center">${stu.name || '空'}</div>`;
+                d.onclick = () => {
+                    const isChangeMode = !document.getElementById('change-seats-btn').classList.contains('disabled-btn');
+                    if (isChangeMode) {
+                        const i = selectedStudents.findIndex(x => x.id === stu.id);
+                        if (i > -1) {
+                            selectedStudents.splice(i, 1);
+                        } else {
+                            if (selectedStudents.length < 2) {
+                                selectedStudents.push(stu);
+                            }
+                        }
+                    } else {
+                        selectedStudents = [stu];
+                    }
+                    renderSeats();
+                };
+            } else {
+                d.innerHTML = '<div class="text-gray-400 text-sm">空</div>';
+            }
+            grid.appendChild(d);
+        }
+        const right = document.createElement('div');
+        right.className = 'flex items-center justify-center font-bold text-primary text-sm';
+        right.textContent = r + '排';
+        grid.appendChild(right);
+    }
+}
+
+document.getElementById('change-seats-btn').onclick = () => {
+    if (document.getElementById('change-seats-btn').classList.contains('disabled-btn')) return;
+    if (selectedStudents.length !== 2) { alert("请选择2名学生进行换座！"); return; }
+    const [a, b] = selectedStudents;
+    [a.seat, b.seat] = [b.seat, a.seat];
+    const n1 = (a.seat.row - 1) * getRealDisplayCols() + a.seat.col;
+    const n2 = (b.seat.row - 1) * getRealDisplayCols() + b.seat.col;
+    n1 < n2 ? a.isRose = 1 : b.isRose = 1;
+    selectedStudents = [];
+    renderSeats();
+    saveSystemDataToCloud('system_students', students);
+};
+
+function closeModal(s) { document.querySelector(s).style.display = 'none'; }
+
+document.getElementById('scores-btn').onclick = () => {
+    if (document.getElementById('scores-btn').classList.contains('disabled-btn')) return;
+    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
+    const s = selectedStudents[0];
+    let html = `<p>姓名：${s.name}</p>`;
+    for (let sub in s.score) {
+        let val = s.score[sub];
+        if (val !== null && val !== undefined && val !== '') {
+            html += `<p>${sub}：${val}</p>`;
+        }
+    }
+    document.getElementById('score-info').innerHTML = html;
+    document.getElementById('score-modal').style.display = 'block';
+};
+
+document.getElementById('contact-btn').onclick = () => {
+    if (document.getElementById('contact-btn').classList.contains('disabled-btn')) return;
+    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
+    const s = selectedStudents[0];
+    const c = s.contact;
+    document.getElementById('contact-info').innerHTML = `
+    <p>姓名：${s.name}</p>
+    <p>性别：${c.gender || '未填'} 年龄：${c.age || '未填'} 身高：${c.height || '未知'}cm</p>
+    <p>住址：${c.address || '未填'}</p>
+    <p>身份证：${c.idcard || '未填'}</p>
+    <p>监护人1：${c.guard1 || '未填'}</p>
+    <p>监护人2：${c.guard2 || '未填'}</p>
+    <p>备注：${c.remark || '无'}</p>
+    ${c.photo ? `<p><img src="${c.photo}" style="max-height:120px;"></p>` : ''}`;
+    document.getElementById('contact-modal').style.display = 'block';
+};
+
+function renderSingleChart() {
+    if (!currentStudent) return;
+    scoreChart && scoreChart.destroy();
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    const sub = currentSubject, s = currentStudent;
+    const lab = ['成绩'];
+    const sco = [s.score[sub] || 0];
+    const col = subjectMap[sub] || '#1e88e5';
+    scoreChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: lab,
+            datasets: [{
+                label: sub,
+                data: sco,
+                backgroundColor: col,
+                borderColor: col,
+                borderWidth: 1,
+                yAxisID: 'y'
+            }]
+        },
+        options: {
+            responsive: !0,
+            maintainAspectRatio: !1,
+            plugins: { title: { display: !0, text: `${s.name} - ${sub}` } },
+            scales: { y: { min: 0, max: 100 } }
+        }
+    });
+}
+
+function renderSubjectTabs() {
+    const w = document.getElementById('subject-tabs'); w.innerHTML = '';
+    const validSubjects = Object.keys(currentStudent.score || {}).filter(sub => {
+        const val = currentStudent.score[sub];
+        return val !== null && val !== undefined && val !== '';
+    });
+    validSubjects.forEach(k => {
+        const b = document.createElement('button'); b.className = 'subject-btn';
+        k === currentSubject && b.classList.add('active'); b.textContent = k;
+        b.onclick = () => {
+            currentSubject = k;
+            document.querySelectorAll('.subject-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            renderSingleChart();
+        };
+        w.appendChild(b);
+    });
+}
+
+document.getElementById('growth-btn').onclick = () => {
+    if (document.getElementById('growth-btn').classList.contains('disabled-btn')) return;
+    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
+    currentStudent = selectedStudents[0];
+    renderSubjectTabs();
+    renderSingleChart();
+    document.getElementById('growth-modal').style.display = 'block';
+};
+
+document.getElementById('config-btn').onclick = () => {
+    document.getElementById('cfg-classname').value = classConfig.className;
+    document.getElementById('cfg-rows').value = classConfig.rows;
+    document.getElementById('cfg-cols').value = classConfig.cols;
+    document.getElementById('cfg-aisles').value = classConfig.aisles.join(',');
+    document.getElementById('config-modal').style.display = 'block';
+};
+
+document.getElementById('save-config').onclick = async () => {
+    classConfig.className = document.getElementById('cfg-classname').value;
+    classConfig.rows = parseInt(document.getElementById('cfg-rows').value) || 6;
+    classConfig.cols = parseInt(document.getElementById('cfg-cols').value) || 6;
+    const ais = document.getElementById('cfg-aisles').value.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+    classConfig.aisles = ais;
+    await saveSystemDataToCloud('system_config', classConfig);
+    initStudents(true);
+    renderCols();
+    renderSeats();
+    document.getElementById('class-name').textContent = classConfig.className;
+    closeModal('#config-modal');
+};
+
+document.getElementById('red-light-btn').onclick = () => {
+    if (selectedStudents.length < 1) { alert("请选择学生"); return; }
+    selectedStudents.forEach(s => {
+        s.red = 1;
+        s.firstTime = new Date().toLocaleString();
+    });
+    renderSeats();
+    saveSystemDataToCloud('system_students', students);
+};
+
+document.getElementById('clear-btn').onclick = () => {
+    students.forEach(s => { s.red = 0; s.isRose = false; });
+    selectedStudents = [];
+    renderSeats();
+    saveSystemDataToCloud('system_students', students);
+};
+
+document.getElementById('rule-set-btn').onclick = () => {
+    const box = document.getElementById('rule-list');
+    box.innerHTML = '';
+    classConfig.rules.forEach((ru, i) => {
+        const div = document.createElement('div');
+        div.className = 'rule-item';
+        div.innerHTML = `
+            <input class="name border p-1" value="${ru.name}">
+            <input class="sco border p-1 w-16" value="${ru.score}">
+            <button onclick="this.parentElement.remove()" class="bg-danger text-white px-1">×</button>
+        `;
+        box.appendChild(div);
+    });
+    document.getElementById('rule-modal').style.display = 'block';
+};
+
+document.getElementById('add-rule').onclick = () => {
+    const div = document.createElement('div');
+    div.className = 'rule-item';
+    div.innerHTML = `
+        <input class="name border p-1" placeholder="违纪名称">
+        <input class="sco border p-1 w-16" value="-1">
+        <button onclick="this.parentElement.remove()" class="bg-danger text-white px-1">×</button>
+    `;
+    document.getElementById('rule-list').appendChild(div);
+};
+
+document.getElementById('save-rule').onclick = async () => {
+    const arr = [];
+    document.querySelectorAll('.rule-item').forEach(it => {
+        const n = it.querySelector('.name').value.trim();
+        const s = parseInt(it.querySelector('.sco').value) || 0;
+        if (n) arr.push({ name: n, score: s });
+    });
+    classConfig.rules = arr;
+    await saveSystemDataToCloud('system_config', classConfig);
+    closeModal('#rule-modal');
+    alert('已保存违纪量化规则');
+};
+
+document.getElementById('quantification-btn').onclick = () => {
+    if (selectedStudents.length !== 1) { alert("请选1人"); return; }
+    const stu = selectedStudents[0];
+    document.getElementById('quan-student-name').textContent = stu.name;
+    const sel = document.getElementById('rule-select');
+    sel.innerHTML = '';
+    classConfig.rules.forEach(r => {
+        const o = document.createElement('option');
+        o.value = r.score;
+        o.textContent = `${r.name}（${r.score}分）`;
+        sel.appendChild(o);
+    });
+    document.getElementById('current-score').textContent = `本次扣分：${sel.value} 分`;
+    document.getElementById('quan-modal').style.display = 'block';
+};
+
+document.getElementById('rule-select').onchange = function () {
+    document.getElementById('current-score').textContent = `本次扣分：${this.value} 分`;
+};
+
+document.getElementById('save-quan').onclick = async () => {
+    const stu = selectedStudents[0];
+    const score = parseInt(document.getElementById('rule-select').value) || 0;
+    const desc = document.getElementById('rule-desc').value.trim();
+    stu.quanTotal += score;
+    stu.quanRecords.push({
+        time: new Date().toLocaleString(),
+        score, desc,
+        operator: currentUser.username
+    });
+    await saveSystemDataToCloud('system_students', students);
+    closeModal('#quan-modal');
+    alert('量化记录已保存');
+};
+
+document.querySelectorAll('.tab-btn').forEach(b => {
+    b.onclick = () => {
+        const t = b.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        document.getElementById('tab-' + t).classList.add('active');
+    };
+});
+
+document.getElementById('import-btn').onclick = () => {
+    document.getElementById('import-modal').style.display = 'block';
+};
+
+function triggerImportStudent() {
+    document.getElementById('import-stu-input').click();
+}
+function triggerImportScore() {
+    document.getElementById('import-score-input').click();
+}
+function openContactImportChoice() {
+    document.getElementById('import-contact-input').click();
+}
+
+document.getElementById('import-stu-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const arr = XLSX.utils.sheet_to_json(ws);
+        if (arr.length < 1) { alert("无数据"); return; }
+        students = [];
+        arr.forEach((r, i) => {
+            const name = r['姓名'] || r['name'] || `学生${i + 1}`;
+            students.push({
+                id: 's' + i, name,
+                seat: { row: 1, col: 1 },
+                red: 0, firstTime: '',
+                score: {},
+                contact: { gender: '', age: '', address: '', idcard: '', guard1: '', guard2: '', photo: '', remark: '', height: 165 },
+                isRose: false,
+                quanTotal: 100,
+                quanRecords: []
+            });
+        });
+        initStudents(true);
+        await saveSystemDataToCloud('system_students', students);
+        renderCols();
+        renderSeats();
+        alert(`导入 ${students.length} 人`);
+        closeModal('#import-modal');
+    };
+    reader.readAsBinaryString(file);
+};
+
+document.getElementById('logout-btn').onclick = () => {
+    location.reload();
+};
+
+// 登录
+document.getElementById('role').onchange = function () {
+    const v = this.value;
+    const u = document.getElementById('username-field');
+    const p = document.getElementById('password-field');
+    if (v === 'visitor') {
+        u.classList.add('hidden');
+        p.classList.add('hidden');
+    } else {
+        u.classList.remove('hidden');
+        p.classList.remove('hidden');
+    }
+};
+
+document.getElementById('login-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const role = document.getElementById('role').value;
+    const username = document.getElementById('username').value.trim();
+    const pwd = document.getElementById('password').value.trim();
+
+    if (role === 'visitor') {
+        currentUser = { role: 'visitor', username: '学生', teamName: '默认团队' };
+        await loadSystemDataFromCloud();
+        gotoMain();
+        return;
+    }
+
+    const user = userList.find(u => u.role === role && u.username === username);
+    if (!user) { alert("账号不存在"); return; }
+    if (user.pwd !== pwd) { alert("密码错误"); return; }
+
+    currentUser = user;
+    await loadSystemDataFromCloud();
+    gotoMain();
+};
+
+function gotoMain() {
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('main-page').classList.remove('hidden');
+    document.getElementById('current-user').textContent = `${currentUser.username}（${currentUser.role}）`;
+    document.getElementById('class-name').textContent = classConfig.className;
+
+    if (['teacher_in_charge', 'admin', 'developer'].includes(currentUser.role)) {
+        document.getElementById('config-btn').classList.remove('hidden');
+        document.getElementById('import-btn').classList.remove('hidden');
+        document.getElementById('monitor-auth-btn').classList.remove('hidden');
+        document.getElementById('user-manage-btn').classList.remove('hidden');
+        document.getElementById('save-seat-btn').classList.remove('hidden');
+        document.getElementById('bind-seat-btn').classList.remove('hidden');
+        document.getElementById('batch-create-btn').classList.remove('hidden');
+        document.getElementById('view-quan-file-btn').classList.remove('hidden');
+    }
+
+    initStudents();
+    renderCols();
+    renderSeats();
+}
+
+document.getElementById('go-register').onclick = () => {
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('register-page').classList.remove('hidden');
+};
+document.getElementById('back-login').onclick = () => {
+    document.getElementById('register-page').classList.add('hidden');
+    document.getElementById('login-page').classList.remove('hidden');
+};
+
+// 初始化
+window.onload = async () => {
+    await initDefaultUsersIfEmpty();
+};
+</script>
+</body>
+</html>
