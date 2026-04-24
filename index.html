@@ -3,15 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>学生自主管理系统</title>
+    <title>学生自主管理云系统</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
-
-    <!-- 云开发 Web SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/cloudbase-js-sdk@2.11.0/dist/cloudbase.full.min.js"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -470,7 +466,7 @@
     <header class="bg-primary text-white p-2 rounded flex justify-between items-center flex-shrink-0">
         <div>
             <h1 class="text-lg font-bold">学生自主管理系统</h1>
-            <p class="text-xs mt-1">欢迎使用学生自主管理系统2.0</p>
+            <p class="text-xs mt-1">云端数据 · 永久保存 · 多端同步</p>
         </div>
         <div class="text-sm flex flex-col items-end">
             <span id="current-user">游客</span>
@@ -512,6 +508,10 @@
         <button id="growth-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-area-chart text-accent"></i><br>曲线</button>
         <button id="contact-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-address-book"></i><br>通讯</button>
         <button id="announcement-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-bullhorn text-danger"></i><br>公告</button>
+  </div>
+<div class="text-center text-xs text-gray-500 mt-1">
+        开发者：寇鹏浩@版权所有
+    </div>
     </div>
 </div>
 
@@ -555,7 +555,7 @@
             <div>
                 <label class="block text-sm font-medium mb-1">2. 署名（必须）</label>
                 <input type="text" id="edit-author" placeholder="请输入姓名/身份" class="w-full border p-2 rounded">
-                <p class="text-xs text-gray-500">为安全必须填写真实署名</p>
+                <p class="text-xs text-gray-500 mt-1">为安全必须填写真实署名</p>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">3. 公告内容</label>
@@ -652,7 +652,7 @@
             </div>
             <div class="border p-2 rounded">
                 <label class="font-bold text-primary block mb-1">禁止相邻（姓名1,姓名2）</label>
-                <input id="must-together" class="w-full border p-1" placeholder="例：王五,赵六">
+                <input id="forbid-together" class="w-full border p-1" placeholder="例：王五,赵六">
             </div>
             <button id="run-smart-seat" class="bg-success text-white p-2 rounded w-full">✅ 执行AI智能排座</button>
             <button onclick="closeModal('#smart-seat-modal')" class="bg-gray-500 text-white p-2 rounded w-full">取消</button>
@@ -718,7 +718,7 @@
             </div>
             <img id="evidence-preview" class="evidence-preview">
             <video id="evidence-video" class="evidence-preview" controls></video>
-            <audio id="evidence-audio" class="evidence-preview mt-2" controls>
+            <audio id="evidence-audio" class="evidence-preview mt-2" controls></audio>
         </div>
         <div class="mt-3 flex gap-2">
             <button class="tab-btn active" data-tab="score">扣分分值</button>
@@ -770,16 +770,6 @@
 </div>
 
 <script>
-// ==============================================
-// 【1】手动填写：你的微信云开发环境ID
-// ==============================================
-const CLOUD_ENV = "wx6aec3501e11e40b7";
-
-// 初始化云开发
-const cloudApp = cloudbase.init({ env: CLOUD_ENV });
-const db = cloudApp.database();
-const _ = db.command;
-
 let currentUser = null;
 let selectedStudents = [];
 let students = [];
@@ -806,112 +796,24 @@ const subjectMap = {};
 const classAvgData = {};
 let batchAccountList = [];
 
-// 云端集合名称
-const COLLECTION = {
-    USERS: "system_users",
-    STUDENTS: "system_students",
-    CONFIG: "system_config",
-    NOTICES: "system_notices",
-    BIND: "system_bind"
+const CLOUD_KEYS = {
+    USERS: 'cloud_system_users',
+    STUDENTS: 'cloud_system_students',
+    CONFIG: 'cloud_system_config',
+    FILES: 'cloud_system_files',
+    NOTICES: 'cloud_system_notices',
+    BIND_SEAT: 'cloud_bind_seat_layout',
+    USER_BIND: 'cloud_user_bind_class'
 };
 
-// ==============================================
-// 云端统一读写方法
-// ==============================================
-async function cloudGet(collection, docId) {
-    try {
-        const res = await db.collection(collection).doc(docId).get();
-        return res.data?.data || null;
-    } catch (e) {
-        console.error("cloudGet", e);
-        return null;
-    }
-}
+let userList = [];
 
-async function cloudSet(collection, docId, data) {
-    try {
-        await db.collection(collection).doc(docId).set({ data });
-        return true;
-    } catch (e) {
-        console.error("cloudSet", e);
-        alert("保存到云端失败：" + e.message);
-        return false;
-    }
-}
-
-// ==============================================
-// 加载/保存 替换 localStorage
-// ==============================================
-async function loadSystemDataFromCloud() {
-    const team = currentUser?.teamName || "default";
-    const docId = `data_${team}`;
-
-    // 用户列表
-    const users = await cloudGet(COLLECTION.USERS, "all_users");
-    if (users) userList = users;
-
-    // 班级配置
-    const config = await cloudGet(COLLECTION.CONFIG, docId);
-    if (config) classConfig = config;
-
-    // 学生数据
-    const stuData = await cloudGet(COLLECTION.STUDENTS, docId);
-    if (stuData) students = stuData;
-
-    // 公告
-    const notices = await cloudGet(COLLECTION.NOTICES, docId);
-    if (notices) noticeList = notices;
-
-    // 绑定关系
-    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind");
-    if (bindMap) window._bindMap = bindMap;
-}
-
-async function saveSystemDataToCloud(key, data) {
-    const team = currentUser?.teamName || "default";
-    const docId = `data_${team}`;
-
-    switch (key) {
-        case "system_users":
-            return cloudSet(COLLECTION.USERS, "all_users", data);
-        case "system_config":
-            return cloudSet(COLLECTION.CONFIG, docId, data);
-        case "system_students":
-            return cloudSet(COLLECTION.STUDENTS, docId, data);
-        case "system_notices":
-            return cloudSet(COLLECTION.NOTICES, docId, data);
-        case "user_bind":
-            return cloudSet(COLLECTION.BIND, "user_bind", data);
-    }
-}
-
-// ==============================================
-// 初始化默认用户（首次运行）
-// ==============================================
-async function initDefaultUsersIfEmpty() {
-    const users = await cloudGet(COLLECTION.USERS, "all_users");
-    if (users && users.length > 0) {
-        userList = users;
-        return;
-    }
-    const defaultUsers = [
-        { role: 'teacher_in_charge', username: '班主任', pwd: '123456', isDefault: true, status: 'normal', manager: 'developer', teamName: '默认团队' },
-        { role: 'monitor', username: '班长', pwd: '123456', status: 'normal', manager: 'developer', teamName: '默认团队' },
-        { role: 'developer', username: '开发者', pwd: 'kph1234@sina.com', status: 'normal', manager: 'none', teamName: '系统' }
-    ];
-    await cloudSet(COLLECTION.USERS, "all_users", defaultUsers);
-    userList = defaultUsers;
-}
-
-// ==============================================
-// 下面是你原来的所有逻辑，全部保留正常运行
-// ==============================================
-const DEVELOPER_PWD = 'kph1234@sina.com';
+const DEVELOPER_PWD = 'kph123456';
 
 function random6Code() {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let res = '';
-    for (let i = 0; i < 6; i++) {
+    for(let i=0; i<6; i++){
         res += chars[Math.floor(Math.random() * chars.length)];
     }
     return res;
@@ -920,22 +822,154 @@ function random6Code() {
 function randomPassword() {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*';
     let res = '';
-    for (let i = 0; i < 8; i++) {
+    for(let i=0; i<8; i++){
         res += chars[Math.floor(Math.random() * chars.length)];
     }
     return res;
 }
 
-// 绑定逻辑（云端版）
-async function refreshBindUserList() {
+function cloudGet(key) {
+    const val = localStorage.getItem(key);
+    return val ? JSON.parse(val) : null;
+}
+
+function cloudSet(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+function initDefaultCloudData() {
+    if (!cloudGet(CLOUD_KEYS.USERS)) {
+        const defaultUsers = [
+            {role:'teacher_in_charge', username:'班主任', pwd:'123456', isDefault:true, status:'normal', manager:'developer', teamName:'默认班级'},
+            {role:'monitor', username:'班长', pwd:'123456', status:'normal', manager:'developer', teamName:'默认班级'},
+            {role:'developer', username:'开发者', pwd:DEVELOPER_PWD, status:'normal', manager:'none', teamName:'系统'}
+        ];
+        cloudSet(CLOUD_KEYS.USERS, defaultUsers);
+    }
+
+    if (!cloudGet(CLOUD_KEYS.FILES)) {
+        cloudSet(CLOUD_KEYS.FILES, {});
+    }
+    if (!cloudGet(CLOUD_KEYS.USER_BIND)) {
+        cloudSet(CLOUD_KEYS.USER_BIND, {});
+    }
+}
+
+function loadCloudAllData() {
+    userList = cloudGet(CLOUD_KEYS.USERS) || [];
+    noticeList = cloudGet(CLOUD_KEYS.NOTICES) || [];
+}
+
+function loadBindedSeatLayout(team) {
+    const bindData = cloudGet(CLOUD_KEYS.BIND_SEAT + '_' + team);
+    if (!bindData) return false;
+    try {
+        const { config, studentData } = bindData;
+        classConfig = config;
+        students = studentData;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function autoLoadUserBindClass(username){
+    const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
+    const bindTeam = bindMap[username];
+    if(bindTeam){
+        const hasBind = loadBindedSeatLayout(bindTeam);
+        if(hasBind){
+            currentUser.teamName = bindTeam;
+            return true;
+        }
+    }
+    return false;
+}
+
+function loadTeamData(team) {
+    const savedStudents = cloudGet(CLOUD_KEYS.STUDENTS + '_' + team);
+    if(savedStudents) students = savedStudents;
+    
+    const savedConfig = cloudGet(CLOUD_KEYS.CONFIG + '_' + team);
+    if(savedConfig) classConfig = savedConfig;
+    
+    const savedNotices = cloudGet(CLOUD_KEYS.NOTICES + '_' + team);
+    if(savedNotices) noticeList = savedNotices;
+}
+
+function loadSystemData() {
+    const team = currentUser?.teamName || '默认班级';
+    if(currentUser && autoLoadUserBindClass(currentUser.username)){
+        return;
+    }
+    const hasBind = loadBindedSeatLayout(team);
+    if (hasBind) return;
+    loadTeamData(team);
+}
+
+function saveTeamData(key, team, data) {
+    cloudSet(key + '_' + team, data);
+}
+
+function saveCurrentSeatLayout() {
+    const team = currentUser.teamName;
+    if (!team) {
+        alert('请先设置班级');
+        return;
+    }
+    const data = {
+        className: classConfig.className,
+        config: { ...classConfig },
+        studentData: [...students],
+        saveTime: new Date().toLocaleString()
+    };
+    cloudSet('seat_backup_' + team, data);
+    alert('✅ 座次表已永久保存到云端！');
+}
+
+function bindSeatToClass() {
+    const team = currentUser.teamName;
+    if (!team) {
+        alert('请先设置班级');
+        return;
+    }
+    if (!confirm('确定将当前座次表绑定到本班？\n所有本班用户登录将自动加载这张表！')) {
+        return;
+    }
+    const bindData = {
+        config: { ...classConfig },
+        studentData: [...students]
+    };
+    cloudSet(CLOUD_KEYS.BIND_SEAT + '_' + team, bindData);
+    alert('✅ 座次表已成功绑定到云端班级！');
+}
+
+function openBindClassModal(){
+    const sel = document.getElementById('bind-team-select');
+    sel.innerHTML = '';
+    const allTeams = [...new Set(userList.map(u=>u.teamName).filter(t=>t&&t!='系统'))];
+    allTeams.forEach(team=>{
+        const opt = document.createElement('option');
+        opt.value = team;
+        opt.textContent = team;
+        sel.appendChild(opt);
+    });
+    document.getElementById('bind-username').value = '';
+    refreshBindUserList();
+    document.getElementById('bind-class-modal').style.display = 'block';
+}
+
+function refreshBindUserList(){
     const container = document.getElementById('bind-user-list');
-    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+    const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
     container.innerHTML = '';
-    if (Object.keys(bindMap).length === 0) {
+
+    if(Object.keys(bindMap).length === 0){
         container.innerHTML = '<div class="text-gray-500 text-center">暂无绑定用户</div>';
         return;
     }
-    for (let username in bindMap) {
+
+    for(let username in bindMap){
         const team = bindMap[username];
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center border-b pb-1 mb-1';
@@ -947,41 +981,44 @@ async function refreshBindUserList() {
     }
 }
 
-async function unbindUser(username) {
-    if (!confirm(`确定解绑用户【${username}】吗？`)) return;
-    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+function unbindUser(username){
+    if(!confirm(`确定解绑用户【${username}】吗？`)) return;
+    const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
     delete bindMap[username];
-    await saveSystemDataToCloud("user_bind", bindMap);
-    await refreshBindUserList();
+    cloudSet(CLOUD_KEYS.USER_BIND, bindMap);
+    refreshBindUserList();
     alert(`✅ 用户【${username}】已解绑`);
 }
 
-async function doBindSeatToUser() {
+function doBindSeatToUser(){
     const targetTeam = document.getElementById('bind-team-select').value;
     const targetUser = document.getElementById('bind-username').value.trim();
-    if (!targetTeam || !targetUser) {
+    
+    if(!targetTeam || !targetUser){
         alert('请选择班级并输入账号！');
         return;
     }
-    const findUser = userList.find(u => u.username === targetUser);
-    if (!findUser) {
+    
+    const findUser = userList.find(u=>u.username === targetUser);
+    if(!findUser){
         alert('该账号不存在！');
         return;
     }
-    const bindMap = await cloudGet(COLLECTION.BIND, "user_bind") || {};
+    
+    const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
     bindMap[targetUser] = targetTeam;
-    await saveSystemDataToCloud("user_bind", bindMap);
+    cloudSet(CLOUD_KEYS.USER_BIND, bindMap);
+    
     alert(`✅ 绑定成功！\n账号【${targetUser}】登录自动加载【${targetTeam}】座次表`);
-    await refreshBindUserList();
+    refreshBindUserList();
 }
 
-// 时间
 function updateRealTime() {
     const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
-    const hh = String(now.getHours()).padStart(2, 0);
-    const mm = String(now.getMinutes()).padStart(2, 0);
-    const ss = String(now.getSeconds()).padStart(2, 0);
+    const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
+    const hh = String(now.getHours()).padStart(2,0);
+    const mm = String(now.getMinutes()).padStart(2,0);
+    const ss = String(now.getSeconds()).padStart(2,0);
     const w = '日一二三四五六'[now.getDay()];
     document.getElementById('real-time').textContent = `${y}-${m}-${d} ${hh}:${mm}:${ss} 周${w}`;
 }
@@ -992,27 +1029,27 @@ function getRealDisplayCols() {
 }
 
 function initStudents(blank = false) {
-    if (students.length > 0 && !blank) return;
+    if(students.length > 0 && !blank) return;
     students = [];
     let idx = 0;
     const rows = classConfig.rows;
     const studentCols = classConfig.cols;
     const aisles = classConfig.aisles;
 
-    for (let let r = 1; r <= rows; r++) {
+    for(let r=1; r<=rows; r++){
         let realCol = 1;
-        for (let sc = 1; sc <= studentCols; sc++) {
-            while (aisles.includes(realCol)) {
+        for(let sc=1; sc<=studentCols; sc++){
+            while(aisles.includes(realCol)){
                 realCol++;
             }
             const stu = {
-                id: 's' + idx,
-                name: blank ? '' : `学生${idx + 1}`,
-                seat: { row: r, col: realCol },
-                red: 0, firstTime: '',
+                id:'s'+idx,
+                name: blank ? '' : `学生${idx+1}`,
+                seat:{row:r, col:realCol},
+                red:0, firstTime:'',
                 score: {},
                 contact: {
-                    gender: '', age: '', address: '', idcard: '', guard1: '', guard2: '', photo: '', remark: '', height: 160 + Math.floor(Math.random() * 20)
+                    gender:'',age:'',address:'',idcard:'',guard1:'',guard2:'',photo:'',remark:'',height:160+Math.floor(Math.random()*20)
                 },
                 isRose: false,
                 quanTotal: 100,
@@ -1023,7 +1060,7 @@ function initStudents(blank = false) {
             realCol++;
         }
     }
-    saveSystemDataToCloud('system_students', students);
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser?.teamName || '默认班级', students);
 }
 
 function renderCols() {
@@ -1031,10 +1068,10 @@ function renderCols() {
     wrap.innerHTML = '';
     const realDisplayCols = getRealDisplayCols();
     const cols = ['40px'];
-    for (let i = 1; i <= realDisplayCols; i++) {
-        if (classConfig.aisles.includes(i)) {
+    for(let i=1; i<=realDisplayCols; i++){
+        if(classConfig.aisles.includes(i)){
             cols.push('46px');
-        } else {
+        }else{
             cols.push('1fr');
         }
     }
@@ -1043,10 +1080,10 @@ function renderCols() {
     wrap.appendChild(document.createElement('div'));
 
     let realSeatCol = 1;
-    for (let i = 1; i <= realDisplayCols; i++) {
-        if (classConfig.aisles.includes(i)) {
+    for(let i=1; i<=realDisplayCols; i++){
+        if(classConfig.aisles.includes(i)){
             wrap.appendChild(document.createElement('div'));
-        } else {
+        }else{
             const div = document.createElement('div');
             div.className = 'col-label';
             div.textContent = `第${realSeatCol}列`;
@@ -1062,12 +1099,12 @@ function renderSeats() {
     grid.innerHTML = '';
     const realDisplayCols = getRealDisplayCols();
     const rows = classConfig.rows;
-
+    
     const gridCols = ['40px'];
-    for (let i = 1; i <= realDisplayCols; i++) {
-        if (classConfig.aisles.includes(i)) {
+    for(let i=1; i<=realDisplayCols; i++){
+        if(classConfig.aisles.includes(i)){
             gridCols.push('46px');
-        } else {
+        }else{
             gridCols.push('1fr');
         }
     }
@@ -1075,8 +1112,8 @@ function renderSeats() {
     grid.style.gridTemplateColumns = gridCols.join(' ');
     grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-    for (let i = 1; i <= realDisplayCols; i++) {
-        if (classConfig.aisles.includes(i)) {
+    for(let i=1; i<=realDisplayCols; i++){
+        if(classConfig.aisles.includes(i)){
             const aisle = document.createElement('div');
             aisle.className = 'aisle';
             aisle.style.gridColumn = i + 1;
@@ -1086,18 +1123,18 @@ function renderSeats() {
         }
     }
 
-    for (let r = 1; r <= rows; r++) {
+    for (let r=1; r<=rows; r++) {
         const left = document.createElement('div');
         left.className = 'flex items-center justify-center font-bold text-primary text-sm';
-        left.textContent = r + '排';
+        left.textContent = r+'排';
         grid.appendChild(left);
 
-        for (let c = 1; c <= realDisplayCols; c++) {
+        for (let c=1; c<=realDisplayCols; c++) {
             if (classConfig.aisles.includes(c)) continue;
             const stu = students.find(s => s.seat.row == r && s.seat.col == c);
             const d = document.createElement('div');
             d.className = `seat flex items-center justify-center rounded border`;
-
+            
             if (stu) {
                 if (stu.red > 0) { d.style.background = "#e53935"; d.style.color = "#ffd700"; d.style.fontWeight = "bold"; }
                 if (selectedStudents.some(s => s.id === stu.id)) d.classList.add('selected');
@@ -1105,16 +1142,16 @@ function renderSeats() {
                 d.innerHTML = `<div class="text-center">${stu.name || '空'}</div>`;
                 d.onclick = () => {
                     const isChangeMode = !document.getElementById('change-seats-btn').classList.contains('disabled-btn');
-                    if (isChangeMode) {
-                        const i = selectedStudents.findIndex(x => x.id === stu.id);
-                        if (i > -1) {
-                            selectedStudents.splice(i, 1);
-                        } else {
-                            if (selectedStudents.length < 2) {
+                    if(isChangeMode){
+                        const i = selectedStudents.findIndex(x=>x.id===stu.id);
+                        if(i>-1){
+                            selectedStudents.splice(i,1);
+                        }else{
+                            if(selectedStudents.length < 2){
                                 selectedStudents.push(stu);
                             }
                         }
-                    } else {
+                    }else{
                         selectedStudents = [stu];
                     }
                     renderSeats();
@@ -1126,7 +1163,7 @@ function renderSeats() {
         }
         const right = document.createElement('div');
         right.className = 'flex items-center justify-center font-bold text-primary text-sm';
-        right.textContent = r + '排';
+        right.textContent = r+'排';
         grid.appendChild(right);
     }
 }
@@ -1134,354 +1171,1074 @@ function renderSeats() {
 document.getElementById('change-seats-btn').onclick = () => {
     if (document.getElementById('change-seats-btn').classList.contains('disabled-btn')) return;
     if (selectedStudents.length !== 2) { alert("请选择2名学生进行换座！"); return; }
-    const [a, b] = selectedStudents;
+    const [a,b] = selectedStudents;
     [a.seat, b.seat] = [b.seat, a.seat];
-    const n1 = (a.seat.row - 1) * getRealDisplayCols() + a.seat.col;
-    const n2 = (b.seat.row - 1) * getRealDisplayCols() + b.seat.col;
-    n1 < n2 ? a.isRose = 1 : b.isRose = 1;
+    const n1 = (a.seat.row-1)*getRealDisplayCols() + a.seat.col;
+    const n2 = (b.seat.row-1)*getRealDisplayCols() + b.seat.col;
+    n1<n2 ? a.isRose=1 : b.isRose=1;
     selectedStudents = [];
     renderSeats();
-    saveSystemDataToCloud('system_students', students);
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
 };
 
-function closeModal(s) { document.querySelector(s).style.display = 'none'; }
+function closeModal(s) { document.querySelector(s).style.display='none'; }
 
 document.getElementById('scores-btn').onclick = () => {
-    if (document.getElementById('scores-btn').classList.contains('disabled-btn')) return;
-    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
-    const s = selectedStudents[0];
+    if(document.getElementById('scores-btn').classList.contains('disabled-btn'))return;
+    if(selectedStudents.length!==1){alert("请选择1名学生");return;}
+    const s=selectedStudents[0];
     let html = `<p>姓名：${s.name}</p>`;
-    for (let sub in s.score) {
+    for(let sub in s.score){
         let val = s.score[sub];
-        if (val !== null && val !== undefined && val !== '') {
+        if(val !== null && val !== undefined && val !== ''){
             html += `<p>${sub}：${val}</p>`;
         }
     }
     document.getElementById('score-info').innerHTML = html;
-    document.getElementById('score-modal').style.display = 'block';
+    document.getElementById('score-modal').style.display='block';
 };
 
 document.getElementById('contact-btn').onclick = () => {
-    if (document.getElementById('contact-btn').classList.contains('disabled-btn')) return;
-    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
-    const s = selectedStudents[0];
-    const c = s.contact;
-    document.getElementById('contact-info').innerHTML = `
+    if(document.getElementById('contact-btn').classList.contains('disabled-btn'))return;
+    if(selectedStudents.length!==1){alert("请选择1名学生");return;}
+    const s=selectedStudents[0];
+    const c=s.contact;
+    document.getElementById('contact-info').innerHTML=`
     <p>姓名：${s.name}</p>
-    <p>性别：${c.gender || '未填'} 年龄：${c.age || '未填'} 身高：${c.height || '未知'}cm</p>
-    <p>住址：${c.address || '未填'}</p>
-    <p>身份证：${c.idcard || '未填'}</p>
-    <p>监护人1：${c.guard1 || '未填'}</p>
-    <p>监护人2：${c.guard2 || '未填'}</p>
-    <p>备注：${c.remark || '无'}</p>
-    ${c.photo ? `<p><img src="${c.photo}" style="max-height:120px;"></p>` : ''}`;
-    document.getElementById('contact-modal').style.display = 'block';
+    <p>性别：${c.gender||'未填'} 年龄：${c.age||'未填'} 身高：${c.height||'未知'}cm</p>
+    <p>住址：${c.address||'未填'}</p>
+    <p>身份证：${c.idcard||'未填'}</p>
+    <p>监护人1：${c.guard1||'未填'}</p>
+    <p>监护人2：${c.guard2||'未填'}</p>
+    <p>备注：${c.remark||'无'}</p>
+    ${c.photo?`<p><img src="${c.photo}" style="max-height:120px;"></p>`:''}`;
+    document.getElementById('contact-modal').style.display='block';
 };
 
 function renderSingleChart() {
-    if (!currentStudent) return;
-    scoreChart && scoreChart.destroy();
-    const ctx = document.getElementById('scoreChart').getContext('2d');
-    const sub = currentSubject, s = currentStudent;
+    if(!currentStudent)return;
+    scoreChart&&scoreChart.destroy();
+    const ctx=document.getElementById('scoreChart').getContext('2d');
+    const sub=currentSubject, s=currentStudent;
     const lab = ['成绩'];
     const sco = [s.score[sub] || 0];
     const col = subjectMap[sub] || '#1e88e5';
-    scoreChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: lab,
-            datasets: [{
-                label: sub,
-                data: sco,
-                backgroundColor: col,
-                borderColor: col,
-                borderWidth: 1,
-                yAxisID: 'y'
-            }]
-        },
-        options: {
-            responsive: !0,
-            maintainAspectRatio: !1,
-            plugins: { title: { display: !0, text: `${s.name} - ${sub}` } },
-            scales: { y: { min: 0, max: 100 } }
-        }
+    scoreChart=new Chart(ctx,{
+        type:'bar',
+        data:{labels:lab,datasets:[
+            {label:sub,data:sco,backgroundColor:col,borderColor:col,borderWidth:1,yAxisID:'y'}
+        ]},
+        options:{responsive:!0,maintainAspectRatio:!1,plugins:{title:{display:!0,text:`${s.name} - ${sub}`}},scales:{y:{min:0,max:100}}}
     });
 }
 
-function renderSubjectTabs() {
-    const w = document.getElementById('subject-tabs'); w.innerHTML = '';
+function renderSubjectTabs(){
+    const w=document.getElementById('subject-tabs');w.innerHTML='';
     const validSubjects = Object.keys(currentStudent.score || {}).filter(sub => {
         const val = currentStudent.score[sub];
         return val !== null && val !== undefined && val !== '';
     });
-    validSubjects.forEach(k => {
-        const b = document.createElement('button'); b.className = 'subject-btn';
-        k === currentSubject && b.classList.add('active'); b.textContent = k;
-        b.onclick = () => {
-            currentSubject = k;
-            document.querySelectorAll('.subject-btn').forEach(x => x.classList.remove('active'));
-            b.classList.add('active');
-            renderSingleChart();
-        };
+    validSubjects.forEach(k=>{
+        const b=document.createElement('button');b.className='subject-btn';
+        k===currentSubject&&b.classList.add('active');b.textContent=k;
+        b.onclick=()=>{currentSubject=k;document.querySelectorAll('.subject-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderSingleChart();};
         w.appendChild(b);
     });
 }
 
-document.getElementById('growth-btn').onclick = () => {
-    if (document.getElementById('growth-btn').classList.contains('disabled-btn')) return;
-    if (selectedStudents.length !== 1) { alert("请选择1名学生"); return; }
-    currentStudent = selectedStudents[0];
-    renderSubjectTabs();
-    renderSingleChart();
-    document.getElementById('growth-modal').style.display = 'block';
-};
-
-document.getElementById('config-btn').onclick = () => {
-    document.getElementById('cfg-classname').value = classConfig.className;
-    document.getElementById('cfg-rows').value = classConfig.rows;
-    document.getElementById('cfg-cols').value = classConfig.cols;
-    document.getElementById('cfg-aisles').value = classConfig.aisles.join(',');
-    document.getElementById('config-modal').style.display = 'block';
-};
-
-document.getElementById('save-config').onclick = async () => {
-    classConfig.className = document.getElementById('cfg-classname').value;
-    classConfig.rows = parseInt(document.getElementById('cfg-rows').value) || 6;
-    classConfig.cols = parseInt(document.getElementById('cfg-cols').value) || 6;
-    const ais = document.getElementById('cfg-aisles').value.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-    classConfig.aisles = ais;
-    await saveSystemDataToCloud('system_config', classConfig);
-    initStudents(true);
-    renderCols();
-    renderSeats();
-    document.getElementById('class-name').textContent = classConfig.className;
-    closeModal('#config-modal');
-};
-
-document.getElementById('red-light-btn').onclick = () => {
-    if (selectedStudents.length < 1) { alert("请选择学生"); return; }
-    selectedStudents.forEach(s => {
-        s.red = 1;
-        s.firstTime = new Date().toLocaleString();
+document.getElementById('growth-btn').onclick=()=>{
+    if(document.getElementById('growth-btn').classList.contains('disabled-btn'))return;
+    if(selectedStudents.length!==1){alert("请选择1名学生");return;}
+    currentStudent=selectedStudents[0];
+    const validSubjects = Object.keys(currentStudent.score || {}).filter(sub => {
+        const val = currentStudent.score[sub];
+        return val !== null && val !== undefined && val !== '';
     });
-    renderSeats();
-    saveSystemDataToCloud('system_students', students);
+    if(validSubjects.length > 0){
+        currentSubject = validSubjects[0];
+    }else{
+        currentSubject = '';
+    }
+    let h=`<p>${currentStudent.name}</p>`;
+    for(let sub in currentStudent.score){
+        let val = currentStudent.score[sub];
+        if(val !== null && val !== undefined && val !== ''){
+            h += `<div>${sub}：${val}</div>`;
+        }
+    }
+    document.getElementById('growth-info').innerHTML=h;
+    renderSubjectTabs();renderSingleChart();
+    document.getElementById('growth-modal').style.display='block';
 };
 
-document.getElementById('clear-btn').onclick = () => {
-    students.forEach(s => { s.red = 0; s.isRose = false; });
-    selectedStudents = [];
-    renderSeats();
-    saveSystemDataToCloud('system_students', students);
+document.getElementById('announcement-btn').onclick=()=>{
+    if(document.getElementById('announcement-btn').classList.contains('disabled-btn'))return;
+    renderNoticeList();document.getElementById('announcement-modal').style.display='block';
 };
+document.getElementById('edit-notice-btn').onclick=()=>{closeModal('#announcement-modal');document.getElementById('edit-notice-modal').style.display='block';};
 
-document.getElementById('rule-set-btn').onclick = () => {
-    const box = document.getElementById('rule-list');
-    box.innerHTML = '';
-    classConfig.rules.forEach((ru, i) => {
-        const div = document.createElement('div');
-        div.className = 'rule-item';
-        div.innerHTML = `
-            <input class="name border p-1" value="${ru.name}">
-            <input class="sco border p-1 w-16" value="${ru.score}">
-            <button onclick="this.parentElement.remove()" class="bg-danger text-white px-1">×</button>
-        `;
-        box.appendChild(div);
+function renderNoticeList(){
+    const w=document.getElementById('notice-list');w.innerHTML='';
+    if(!noticeList.length){w.innerHTML='<p class="text-center">无公告</p>';return;}
+    noticeList.forEach((it,i)=>{
+        const d=document.createElement('div');d.className='notice-item';
+        d.innerHTML=`<div><img src="${it.avatar}" class="notice-avatar"><span class="notice-author">${it.author}</span> #${i+1}</div><div class="notice-content">${it.content}</div><div class="notice-time">${it.time}</div>`;
+        w.appendChild(d);
     });
-    document.getElementById('rule-modal').style.display = 'block';
+}
+
+document.getElementById('submit-edit').onclick=()=>{
+    const f=document.getElementById('edit-avatar').files[0],a=document.getElementById('edit-author').value.trim(),c=document.getElementById('edit-content').value.trim();
+    if(!f||!a||!c){alert("必填项不能为空");return;}
+    const r=new FileReader();r.onload=e=>{
+        noticeList.unshift({avatar:e.target.result,author:a,content:c,time:new Date().toLocaleString()});
+        saveTeamData(CLOUD_KEYS.NOTICES, currentUser.teamName, noticeList);
+        closeModal('#edit-notice-modal');renderNoticeList();alert("发布成功");
+    };r.readAsDataURL(f);
 };
 
-document.getElementById('add-rule').onclick = () => {
-    const div = document.createElement('div');
-    div.className = 'rule-item';
-    div.innerHTML = `
-        <input class="name border p-1" placeholder="违纪名称">
-        <input class="sco border p-1 w-16" value="-1">
-        <button onclick="this.parentElement.remove()" class="bg-danger text-white px-1">×</button>
-    `;
-    document.getElementById('rule-list').appendChild(div);
+document.getElementById('del-notice').onclick=()=>{
+    const i=+document.getElementById('del-index').value-1;
+    if(isNaN(i)||i<0||i>=noticeList.length){alert("序号错误");return;}
+    confirm("删除？")&&(noticeList.splice(i,1),saveTeamData(CLOUD_KEYS.NOTICES, currentUser.teamName, noticeList),renderNoticeList(),document.getElementById('del-index').value='');
 };
 
-document.getElementById('save-rule').onclick = async () => {
-    const arr = [];
-    document.querySelectorAll('.rule-item').forEach(it => {
-        const n = it.querySelector('.name').value.trim();
-        const s = parseInt(it.querySelector('.sco').value) || 0;
-        if (n) arr.push({ name: n, score: s });
-    });
-    classConfig.rules = arr;
-    await saveSystemDataToCloud('system_config', classConfig);
-    closeModal('#rule-modal');
-    alert('已保存违纪量化规则');
-};
-
-document.getElementById('quantification-btn').onclick = () => {
-    if (selectedStudents.length !== 1) { alert("请选1人"); return; }
-    const stu = selectedStudents[0];
-    document.getElementById('quan-student-name').textContent = stu.name;
-    const sel = document.getElementById('rule-select');
-    sel.innerHTML = '';
-    classConfig.rules.forEach(r => {
-        const o = document.createElement('option');
-        o.value = r.score;
-        o.textContent = `${r.name}（${r.score}分）`;
-        sel.appendChild(o);
-    });
-    document.getElementById('current-score').textContent = `本次扣分：${sel.value} 分`;
-    document.getElementById('quan-modal').style.display = 'block';
-};
-
-document.getElementById('rule-select').onchange = function () {
-    document.getElementById('current-score').textContent = `本次扣分：${this.value} 分`;
-};
-
-document.getElementById('save-quan').onclick = async () => {
-    const stu = selectedStudents[0];
-    const score = parseInt(document.getElementById('rule-select').value) || 0;
-    const desc = document.getElementById('rule-desc').value.trim();
-    stu.quanTotal += score;
-    stu.quanRecords.push({
-        time: new Date().toLocaleString(),
-        score, desc,
-        operator: currentUser.username
-    });
-    await saveSystemDataToCloud('system_students', students);
-    closeModal('#quan-modal');
-    alert('量化记录已保存');
-};
-
-document.querySelectorAll('.tab-btn').forEach(b => {
-    b.onclick = () => {
-        const t = b.dataset.tab;
-        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        document.getElementById('tab-' + t).classList.add('active');
-    };
+document.getElementById('evidence-file').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    evidenceFile=f;const u=URL.createObjectURL(f);
+    document.querySelectorAll('.evidence-preview').forEach(x=>x.style.display='none');
+    if(f.type.startsWith('image/')){evidenceType='image';const i=document.getElementById('evidence-preview');i.src=u;i.style.display='block';}
+    else if(f.type.startsWith('audio/')){evidenceType='audio';const a=document.getElementById('evidence-audio');a.src=u;a.style.display='block';}
+    else if(f.type.startsWith('video/')){evidenceType='video';const v=document.getElementById('evidence-video');v.src=u;v.style.display='block';}
+    else evidenceType='file';
 });
 
-document.getElementById('import-btn').onclick = () => {
-    document.getElementById('import-modal').style.display = 'block';
-};
-
-function triggerImportStudent() {
-    document.getElementById('import-stu-input').click();
-}
-function triggerImportScore() {
-    document.getElementById('import-score-input').click();
-}
-function openContactImportChoice() {
-    document.getElementById('import-contact-input').click();
+function openQuanModal(){
+    if(document.getElementById('quantification-btn').classList.contains('disabled-btn'))return;
+    if(selectedStudents.length!==1){alert("请选择1名学生");return;}
+    currentStudent=selectedStudents[0];
+    document.getElementById('quan-student-name').textContent=currentStudent.name;
+    const s=document.getElementById('rule-select');s.innerHTML='';
+    classConfig.rules.forEach(r=>{const o=document.createElement('option');o.value=r.score;o.textContent=`${r.name}（${r.score}）`;s.appendChild(o);});
+    evidenceFile=null;evidenceType=null;document.getElementById('evidence-file').value='';
+    document.querySelectorAll('.evidence-preview').forEach(x=>{x.style.display='none';x.src='';});
+    refreshQuanScore();refreshQuanInfo();document.getElementById('quan-modal').style.display='block';
 }
 
-document.getElementById('import-stu-input').onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-        const wb = XLSX.read(ev.target.result, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const arr = XLSX.utils.sheet_to_json(ws);
-        if (arr.length < 1) { alert("无数据"); return; }
-        students = [];
-        arr.forEach((r, i) => {
-            const name = r['姓名'] || r['name'] || `学生${i + 1}`;
-            students.push({
-                id: 's' + i, name,
-                seat: { row: 1, col: 1 },
-                red: 0, firstTime: '',
-                score: {},
-                contact: { gender: '', age: '', address: '', idcard: '', guard1: '', guard2: '', photo: '', remark: '', height: 165 },
-                isRose: false,
-                quanTotal: 100,
-                quanRecords: []
-            });
-        });
-        initStudents(true);
-        await saveSystemDataToCloud('system_students', students);
-        renderCols();
-        renderSeats();
-        alert(`导入 ${students.length} 人`);
-        closeModal('#import-modal');
-    };
-    reader.readAsBinaryString(file);
-};
+function refreshQuanScore(){const v=document.getElementById('rule-select').value;document.getElementById('current-score').textContent=`扣：${v}分`;}
+function refreshQuanInfo(){
+    const s=currentStudent;const t=[...students].sort((a,b)=>b.quanTotal-a.quanTotal);const rk=t.findIndex(x=>x.id===s.id)+1;
+    let h=`✅ 总分：${s.quanTotal} 📉 排名：${rk}<p>记录：</p>`;
+    s.quanRecords.length||(h+='<p class="text-success">无</p>');
+    s.quanRecords.forEach((x,i)=>{h+=`<p>${i+1}、${x.reason} ${x.score} ${x.time}</p>`;});
+    document.getElementById('student-quan-info').innerHTML=h;
+}
 
-document.getElementById('logout-btn').onclick = () => {
-    location.reload();
-};
-
-// 登录
-document.getElementById('role').onchange = function () {
-    const v = this.value;
-    const u = document.getElementById('username-field');
-    const p = document.getElementById('password-field');
-    if (v === 'visitor') {
-        u.classList.add('hidden');
-        p.classList.add('hidden');
-    } else {
-        u.classList.remove('hidden');
-        p.classList.remove('hidden');
+document.getElementById('save-quan').onclick=()=>{
+    const s=currentStudent;const sc=+document.getElementById('rule-select').value;
+    const rs=document.getElementById('rule-select').options[document.getElementById('rule-select').selectedIndex].text.split('（')[0];
+    const d=document.getElementById('rule-desc').value;const t=new Date().toLocaleString();
+    let eh='';if(evidenceFile){const u=URL.createObjectURL(evidenceFile);
+        evidenceType==='image'&&(eh+=`<br><img src="${u}" style="max-width:200px;">`);
+        evidenceType==='audio'&&(eh+=`<br><audio src="${u}" controls style="width:200px;"></audio>`);
+        evidenceType==='video'&&(eh+=`<br><video src="${u}" controls style="max-width:200px;"></video>`);
     }
+    d&&(eh+=`<br>备注：${d}`);
+    s.quanTotal+=sc;s.quanRecords.push({reason:d?`${rs}(${d})`:rs,score:sc,time:t,evidence:eh});
+    saveQuanToCloudFile(s.name,rs,sc,t,eh);refreshQuanInfo();
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    alert("保存成功");closeModal('#quan-modal');
 };
 
-document.getElementById('login-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const role = document.getElementById('role').value;
-    const username = document.getElementById('username').value.trim();
-    const pwd = document.getElementById('password').value.trim();
+function saveQuanToCloudFile(n,r,s,t,e){
+    const now=new Date();const ym=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+    const fn=`${classConfig.className}_${ym}_量化`;
+    let tr=`
+    <tr><td>${t}</td><td>${n}</td><td>${r}</td><td>${s}</td><td>${e||'无'}</td></tr>`;
+    let cf=cloudGet(CLOUD_KEYS.FILES)||{};
+    if(!cf[fn])cf[fn]={title:fn,ct:new Date().toLocaleString(),c:`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fn}</title><style>body{padding:20px;background:#f7fafc}table{width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden}th{background:#1e88e5;color:white;padding:10px}td{padding:8px;border-bottom:1px solid #eee}h2{color:#1e88e5}</style></head><body><h2>${fn}</h2><p>创建：${new Date().toLocaleString()}</p><table><tr><th>时间</th><th>学生</th><th>违纪</th><th>扣分</th><th>证据</th></tr>`};
+    cf[fn].c+=tr;
+    cloudSet(CLOUD_KEYS.FILES, cf);
+}
 
-    if (role === 'visitor') {
-        currentUser = { role: 'visitor', username: '学生', teamName: '默认团队' };
-        await loadSystemDataFromCloud();
-        gotoMain();
+document.getElementById('view-quan-file-btn').onclick=()=>{
+    if(document.getElementById('view-quan-file-btn').classList.contains('disabled-btn'))return;
+    const cf=cloudGet(CLOUD_KEYS.FILES)||{};
+    const l=document.getElementById('quan-file-list');l.innerHTML='';
+    if(!Object.keys(cf).length){l.innerHTML='<p>无文件</p>';}else{
+        for(let k in cf){
+            const it=cf[k];const d=document.createElement('div');d.className='p-2 border rounded';
+            d.innerHTML=`<div class="font-bold">${it.title}</div><div class="text-xs">${it.ct}</div><button onclick="openQuanCloudFile('${k}')" class="mt-1 bg-primary text-white px-2 py-1 rounded text-xs">打开</button>`;
+            l.appendChild(d);
+        }
+    }
+    document.getElementById('quan-file-modal').style.display='block';
+};
+
+function openQuanCloudFile(k){
+    const cf=cloudGet(CLOUD_KEYS.FILES)||{};
+    const f=cf[k];if(!f)return;
+    const b=new Blob([f.c+`</table></body></html>`],{type:'text/html'});
+    window.open(URL.createObjectURL(b),'_blank');
+}
+
+function printSeatLayout(isStudentView) {
+    const printArea = document.getElementById('print-layout');
+    printArea.innerHTML = '';
+    printArea.classList.remove('hidden');
+
+    const title = document.createElement('h2');
+    title.textContent = `${classConfig.className} 座次表`;
+    printArea.appendChild(title);
+
+    const table = document.createElement('table');
+    const realDisplayCols = getRealDisplayCols();
+    const allCols = [];
+    for (let c = 1; c <= realDisplayCols; c++) allCols.push(c);
+    const displayCols = [...allCols];
+
+    const colHeaderTr = document.createElement('tr');
+    const cornerTh = document.createElement('th');
+    cornerTh.textContent = '排\\列';
+    colHeaderTr.appendChild(cornerTh);
+
+    let realColNum = 1;
+    const colNumList = [];
+    for (let c of displayCols) {
+        if (classConfig.aisles.includes(c)) {
+            colNumList.push('');
+        } else {
+            colNumList.push(realColNum++);
+        }
+    }
+
+    const finalColNums = isStudentView ? colNumList : [...colNumList].reverse();
+    for (let num of finalColNums) {
+        const th = document.createElement('th');
+        th.textContent = num;
+        colHeaderTr.appendChild(th);
+    }
+    table.appendChild(colHeaderTr);
+
+    const rowList = [];
+    for (let r = 1; r <= classConfig.rows; r++) rowList.push(r);
+    const displayRows = isStudentView ? [...rowList] : [...rowList].reverse();
+
+    for (let r of displayRows) {
+        const tr = document.createElement('tr');
+        const rowTh = document.createElement('th');
+        rowTh.textContent = r;
+        tr.appendChild(rowTh);
+
+        const currentCols = isStudentView ? [...displayCols] : [...displayCols].reverse();
+        for (let c of currentCols) {
+            const td = document.createElement('td');
+            if (classConfig.aisles.includes(c)) {
+                td.style.backgroundColor = '#dbeafe';
+                if (r === (isStudentView ? 1 : classConfig.rows)) {
+                    td.rowSpan = classConfig.rows;
+                    td.textContent = '过道';
+                    td.style.writingMode = 'vertical-rl';
+                } else {
+                    td.style.display = 'none';
+                }
+                tr.appendChild(td);
+                continue;
+            }
+            const stu = students.find(s => s.seat.row === r && s.seat.col === c);
+            td.textContent = stu?.name || '空座';
+            tr.appendChild(td);
+        }
+        table.appendChild(tr);
+    }
+
+    const deskTr = document.createElement('tr');
+    const deskTd = document.createElement('td');
+    deskTd.colSpan = displayCols.length + 1;
+    deskTd.style.textAlign = 'center';
+    deskTd.style.padding = '10px';
+    deskTd.style.fontWeight = 'bold';
+    deskTd.style.backgroundColor = '#d7ccc8';
+    deskTd.textContent = '讲    台';
+    deskTr.appendChild(deskTd);
+
+    if (isStudentView) {
+        table.insertBefore(deskTr, table.firstChild);
+    } else {
+        table.appendChild(deskTr);
+    }
+
+    printArea.appendChild(table);
+
+    setTimeout(() => {
+        window.print();
+        printArea.classList.add('hidden');
+        closeModal('#print-choice-modal');
+    }, 50);
+}
+
+function applyPermission() {
+    const r=currentUser.role;
+    const btns=['scores-btn','quantification-btn','change-seats-btn','statistics-btn','growth-btn','contact-btn','announcement-btn','red-light-btn','clear-btn'];
+    btns.forEach(id=>{const e=document.getElementById(id);e&&e.classList.add('disabled-btn');});
+    
+    document.getElementById('view-quan-file-btn').classList.add('hidden');
+    document.getElementById('monitor-auth-btn').classList.add('hidden');
+    document.getElementById('user-manage-btn').classList.add('hidden');
+    document.getElementById('config-btn').classList.add('hidden');
+    document.getElementById('import-btn').classList.add('hidden');
+    document.getElementById('batch-create-btn').classList.add('hidden');
+    document.getElementById('switch-class-btn').classList.add('hidden');
+    
+    document.getElementById('save-seat-btn').classList.add('hidden');
+    document.getElementById('bind-seat-btn').classList.add('hidden');
+
+    if(r==='visitor'){['red-light-btn','clear-btn','statistics-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
+    if(r==='monitor'){['quantification-btn','statistics-btn','announcement-btn','change-seats-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
+    if(r==='teacher'){['scores-btn','quantification-btn','growth-btn','statistics-btn','announcement-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
+    
+    if(r==='admin'){
+        document.getElementById('user-manage-btn').classList.remove('hidden');
+        document.getElementById('view-quan-file-btn').classList.remove('hidden');
+        document.getElementById('view-quan-file-btn').classList.remove('disabled-btn');
+        document.getElementById('batch-create-btn').classList.remove('hidden');
+        document.getElementById('switch-class-btn').classList.remove('hidden');
+        
+        ['statistics-btn','contact-btn','announcement-btn','red-light-btn','clear-btn'].forEach(id=>{
+            document.getElementById(id).classList.remove('disabled-btn');
+        });
+    }
+    
+    if(r==='teacher_in_charge'){
+        btns.forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));
+        document.getElementById('config-btn').classList.remove('hidden');
+        document.getElementById('import-btn').classList.remove('hidden');
+        document.getElementById('view-quan-file-btn').classList.remove('hidden');
+        document.getElementById('monitor-auth-btn').classList.remove('hidden');
+        
+        document.getElementById('save-seat-btn').classList.remove('hidden');
+        document.getElementById('bind-seat-btn').classList.remove('hidden');
+    }
+    if(r==='developer'){
+        btns.forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));
+        document.getElementById('config-btn').classList.remove('hidden');
+        document.getElementById('import-btn').classList.remove('hidden');
+        document.getElementById('view-quan-file-btn').classList.remove('hidden');
+        document.getElementById('monitor-auth-btn').classList.remove('hidden');
+        document.getElementById('user-manage-btn').classList.remove('hidden');
+        document.getElementById('batch-create-btn').classList.remove('hidden');
+        document.getElementById('switch-class-btn').classList.remove('hidden');
+        
+        document.getElementById('save-seat-btn').classList.remove('hidden');
+        document.getElementById('bind-seat-btn').classList.remove('hidden');
+    }
+}
+
+function openAdminClassSelect(){
+    const sel = document.getElementById('admin-class-select');
+    sel.innerHTML = '';
+    const adminTeams = [...new Set(userList.filter(u=>u.manager === currentUser.username).map(u=>u.teamName).filter(t=>t))];
+    if(adminTeams.length === 0){
+        alert('你暂无管辖班级，请先注册创建班级！');
+        return;
+    }
+    adminTeams.forEach(team=>{
+        const opt = document.createElement('option');
+        opt.value = team;
+        opt.textContent = team;
+        sel.appendChild(opt);
+    });
+    document.getElementById('admin-select-class-modal').style.display = 'block';
+}
+
+function adminSwitchClass(){
+    const team = document.getElementById('admin-class-select').value;
+    if(!team){alert('请选择班级');return;}
+    
+    currentUser.teamName = team;
+    closeModal('#admin-select-class-modal');
+    refreshMainPage();
+    alert(`已切换至班级：${team}`);
+}
+
+function openBatchCreateModal(){
+    document.getElementById('batch-team').value = currentUser.teamName;
+    document.getElementById('batch-result').innerHTML = '';
+    batchAccountList = [];
+    document.getElementById('batch-create-user-modal').style.display = 'block';
+}
+
+function doBatchCreateUsers(){
+    const count = parseInt(document.getElementById('batch-count').value) || 5;
+    const role = document.getElementById('batch-role').value;
+    const team = document.getElementById('batch-team').value;
+    if(!team){alert('归属班级不能为空');return;}
+    
+    batchAccountList = [];
+    let html = '✅ 生成成功：<br>';
+    for(let i=1; i<=count; i++){
+        const username = random6Code();
+        const pwd = randomPassword();
+        
+        const newUser = {
+            role, username, pwd,
+            isDefault:false, status:'normal',
+            manager: currentUser.username,
+            teamName: team
+        };
+        userList.push(newUser);
+        batchAccountList.push(newUser);
+        html += `账号：${username} —— 密码：${pwd} <br>`;
+    }
+    cloudSet(CLOUD_KEYS.USERS, userList);
+    document.getElementById('batch-result').innerHTML = html;
+    alert(`已批量创建 ${count} 个账户！`);
+}
+
+function exportBatchAccountList(){
+    if(batchAccountList.length === 0){alert('暂无账号可导出');return;}
+    let content = '账号\t密码\t角色\t班级\n';
+    batchAccountList.forEach(u=>{
+        content += `${u.username}\t${u.pwd}\t${u.role==='teacher'?'教师':'班主任'}\t${u.teamName}\n`;
+    });
+    const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `账号清单_${new Date().getTime()}.txt`;
+    a.click();
+}
+
+function doLogin(e){
+    e.preventDefault();
+    const r=document.getElementById('role').value;
+    const u=document.getElementById('username').value;
+    const p=document.getElementById('password').value;
+
+    if(r==='visitor'){currentUser={role:'visitor',username:'学生',teamName:'默认班级'};gotoMain();return;}
+    if(r==='developer'){
+        if(p===DEVELOPER_PWD){
+            currentUser = userList.find(x=>x.role==='developer'&&x.pwd===p);
+            if(currentUser){
+                gotoMain();
+                return;
+            }
+        }
+        alert('密码错误');
         return;
     }
 
-    const user = userList.find(u => u.role === role && u.username === username);
-    if (!user) { alert("账号不存在"); return; }
-    if (user.pwd !== pwd) { alert("密码错误"); return; }
-
-    currentUser = user;
-    await loadSystemDataFromCloud();
-    gotoMain();
-};
-
-function gotoMain() {
-    document.getElementById('login-page').classList.add('hidden');
-    document.getElementById('main-page').classList.remove('hidden');
-    document.getElementById('current-user').textContent = `${currentUser.username}（${currentUser.role}）`;
-    document.getElementById('class-name').textContent = classConfig.className;
-
-    if (['teacher_in_charge', 'admin', 'developer'].includes(currentUser.role)) {
-        document.getElementById('config-btn').classList.remove('hidden');
-        document.getElementById('import-btn').classList.remove('hidden');
-        document.getElementById('monitor-auth-btn').classList.remove('hidden');
-        document.getElementById('user-manage-btn').classList.remove('hidden');
-        document.getElementById('save-seat-btn').classList.remove('hidden');
-        document.getElementById('bind-seat-btn').classList.remove('hidden');
-        document.getElementById('batch-create-btn').classList.remove('hidden');
-        document.getElementById('view-quan-file-btn').classList.remove('hidden');
+    const targetUser = userList.find(x=>x.role===r&&x.username===u&&x.pwd===p);
+    if(!targetUser){
+        alert('账号/密码/角色不匹配');
+        return;
     }
-
-    initStudents();
-    renderCols();
-    renderSeats();
+    if(targetUser.status === 'locked'){
+        alert('账号已被锁定，请联系管理员/开发者');
+        return;
+    }
+    currentUser = targetUser;
+    
+    if(r === 'admin'){
+        setTimeout(()=>openAdminClassSelect(),300);
+    }
+    
+    gotoMain();
 }
 
-document.getElementById('go-register').onclick = () => {
+function refreshMainPage(){
+    document.getElementById('current-user').textContent=currentUser.username;
+    document.getElementById('class-name').textContent=classConfig.className;
+    students = [];
+    noticeList = [];
+    loadSystemData();
+    initStudents(true);
+    renderCols();
+    renderSeats();
+    applyPermission();
+}
+
+function gotoMain(){
     document.getElementById('login-page').classList.add('hidden');
-    document.getElementById('register-page').classList.remove('hidden');
-};
-document.getElementById('back-login').onclick = () => {
+    document.getElementById('register-page').classList.add('hidden');
+    document.getElementById('main-page').classList.remove('hidden');
+    refreshMainPage();
+}
+
+function refreshTeamSelect(){
+    const sel = document.getElementById('reg-join-team');
+    sel.innerHTML = '<option value="">请选择团队</option>';
+    const adminUsers = userList.filter(u => u.role === 'admin');
+    adminUsers.forEach(admin => {
+        const opt = document.createElement('option');
+        opt.value = admin.teamName;
+        opt.textContent = admin.teamName;
+        sel.appendChild(opt);
+    });
+}
+
+function doRegister(e){
+    e.preventDefault();
+    const r=document.getElementById('reg-role').value;
+    const u=document.getElementById('reg-user').value;
+    const p=document.getElementById('reg-pwd').value;
+    const teamName = document.getElementById('reg-team').value.trim();
+    const joinTeam = document.getElementById('reg-join-team').value;
+
+    if(!u||!p){alert('请填写完整信息');return;}
+    if(userList.some(x=>x.username===u)){alert('用户名已存在');return;}
+
+    let newUser;
+    if(r === 'admin'){
+        if(!teamName){alert('请填写团队名称');return;}
+        if(userList.some(x=>x.teamName === teamName)){alert('该团队名称已存在');return;}
+        newUser = {
+            role:r, username:u, pwd:p, 
+            isDefault:false, status:'normal',
+            manager: currentUser?.username || 'developer',
+            teamName: teamName
+        };
+    }else{
+        if(!joinTeam){alert('请选择要加入的团队');return;}
+        newUser = {
+            role:r, username:u, pwd:p, 
+            isDefault:false, status:'normal',
+            manager: currentUser?.username || 'developer',
+            teamName: joinTeam
+        };
+    }
+    
+    userList.push(newUser);
+    cloudSet(CLOUD_KEYS.USERS, userList);
+    alert('注册成功');
     document.getElementById('register-page').classList.add('hidden');
     document.getElementById('login-page').classList.remove('hidden');
+}
+
+document.getElementById('save-monitor-auth').onclick=()=>{
+    const n=document.getElementById('monitor-name').value.trim();
+    const p=document.getElementById('monitor-pwd').value.trim();
+    if(!n||!p){alert('请填写完整');return;}
+    userList=userList.filter(x=>x.role!=='monitor');
+    userList.push({role:'monitor',username:n,pwd:p, status:'normal', manager:currentUser.username, teamName: currentUser.teamName || '默认班级'});
+    cloudSet(CLOUD_KEYS.USERS, userList);
+    alert(`班长：${n} 密码：${p}`);
+    closeModal('#monitor-auth-modal');
 };
 
-// 初始化
-window.onload = async () => {
-    await initDefaultUsersIfEmpty();
+document.getElementById('statistics-btn').onclick=function exportStatsTable(){
+    if(document.getElementById('statistics-btn').classList.contains('disabled-btn'))return;
+    const list=students.filter(x=>x.red>0).sort((a,b)=>b.red-a.red);
+    if(!list.length){alert('无数据');return;}
+    const fn=prompt('文件名','打卡');if(!fn)return;
+    const d=new Date();const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ffn=`${fn}_${ds}`;
+    let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${ffn}</title><style>body{padding:20px;background:#f7fafc}table{width:100%;border-collapse:collapse;background:white;border-radius:8px}th{background:#1e88e5;color:white;padding:10px}td{padding:10px;border:2px solid #333}</style></head><body><h2>${ffn}</h2><table><tr><th>排名</th><th>姓名</th><th>次数</th><th>首次</th></tr>`;
+    list.forEach((it,i)=>{h+=`<tr><td>${i+1}</td><td>${it.name}</td><td>${it.red}</td><td>${it.firstTime||''}</td></tr>`;});
+    h+=`</table></body></html>`;
+    let sl=cloudGet(CLOUD_KEYS.FILES)||[];
+    sl.push({name:ffn,c:h,t:new Date().toLocaleString()});
+    cloudSet(CLOUD_KEYS.FILES, sl);
+    window.open(URL.createObjectURL(new Blob([h],{type:'text/html'})),'_blank');
+    alert('已保存到云端');
 };
+
+function parseAnyFile(file, callback) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
+            callback(lines);
+        };
+        reader.readAsText(file, 'UTF-8');
+    } else if (name.endsWith('.xls') || name.endsWith('.xlsx') || name.endsWith('.et')) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const arr = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            const lines = arr.filter(row => row.length > 0).map(row => row.join(','));
+            callback(lines);
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        alert('不支持的文件格式！');
+    }
+}
+
+function handleFileSelect(file, type) {
+    if (!file) return;
+    parseAnyFile(file, lines => processImportLines(lines, type));
+}
+
+function processImportLines(lines, type) {
+    let log = '', ok = 0, miss = 0;
+    if (type === 'student') {
+        lines.forEach((name, i) => {
+            if (students[i]) {
+                students[i].name = name;
+                log += `✅ 第${i+1}个：${name}\n`;
+                ok++;
+            } else {
+                log += `❌ 第${i+1}个：超出座位数\n`;
+                miss++;
+            }
+        });
+        renderSeats();
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    }
+    if (type === 'score') {
+        if(lines.length === 0){
+            alert('文件无内容');
+            return;
+        }
+        const header = lines[0].split(/[,，\s]/).map(x => x.trim()).filter(x => x);
+        if(header.length < 1){
+            alert('首行格式错误，必须包含姓名+科目');
+            return;
+        }
+        const dataLines = lines.slice(1);
+        dataLines.forEach((line, idx) => {
+            const arr = line.split(/[,，\s]/).map(x => x.trim()).filter(x => x);
+            if(arr.length < 1){
+                log += `❌ 第${idx+2}行：空行\n`;
+                return;
+            }
+            const name = arr[0];
+            const stu = students.find(s => s.name === name);
+            if (!stu) {
+                log += `❌ 未找到学生：${name}\n`;
+                miss++;
+                return;
+            }
+            stu.score = {};
+            for(let i=1; i<header.length; i++){
+                const sub = header[i];
+                const val = arr[i] || '';
+                if(sub && val !== ''){
+                    stu.score[sub] = val;
+                }
+            }
+            log += `✅ 已匹配：${name}\n`;
+            ok++;
+        });
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    }
+    if (type === 'contact') {
+        lines.forEach((line, idx) => {
+            const arr = line.split(/[,，]/).map(x => x.trim());
+            if (arr.length < 8) {
+                log += `❌ 第${idx+1}行：字段不足\n`;
+                return;
+            }
+            const name = arr[0], gender = arr[1], age = arr[2], addr = arr[3], idcard = arr[4], g1 = arr[5], g2 = arr[6], remark = arr[7];
+            const stu = students.find(s => s.name === name);
+            if (!stu) {
+                log += `❌ 未找到：${name}\n`;
+                miss++;
+                return;
+            }
+            stu.contact = { gender, age, address: addr, idcard, guard1: g1, guard2: g2, photo: '', remark, height:stu.contact.height };
+            log += `✅ 已匹配：${name}\n`;
+            ok++;
+        });
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    }
+    alert(`导入完成\n成功：${ok} 人\n失败/未匹配：${miss} 人\n日志：\n${log}`);
+}
+
+function openContactImportChoice() {
+    const c = confirm('选择操作：\n确定 = 批量导入文件\n取消 = 单个录入当前选中学生');
+    if (c) {
+        document.getElementById('import-contact-input').click();
+    } else {
+        if (selectedStudents.length !== 1) {
+            alert('请选1名学生');
+            return;
+        }
+        const s = selectedStudents[0];
+        document.getElementById('contact-name').value = s.name;
+        document.getElementById('contact-gender').value = s.contact.gender || '';
+        document.getElementById('contact-age').value = s.contact.age || '';
+        document.getElementById('contact-address').value = s.contact.address || '';
+        document.getElementById('contact-idcard').value = s.contact.idcard || '';
+        document.getElementById('contact-guard1').value = s.contact.guard1 || '';
+        document.getElementById('contact-guard2').value = s.contact.guard2 || '';
+        document.getElementById('contact-remark').value = s.contact.remark || '';
+        const img = document.getElementById('contact-photo-preview');
+        s.contact.photo ? (img.src = s.contact.photo, img.style.display = 'block') : (img.style.display = 'none');
+        document.getElementById('contact-edit-modal').style.display = 'block';
+    }
+}
+
+function smartSortSeats() {
+    const factors = Array.from(document.querySelectorAll('.factor:checked')).map(x => x.value);
+    const genderRule = document.getElementById('gender-rule').value;
+    const mustTogether = document.getElementById('must-together').value.trim().split(',').map(x=>x.trim()).filter(x=>x);
+    const forbidTogether = document.getElementById('forbid-together').value.trim().split(',').map(x=>x.trim()).filter(x=>x);
+
+    let sorted = [...students].filter(s=>s.name);
+    if(factors.length===0){alert('请选择至少一个优先因素！');return;}
+
+    sorted.sort((a,b)=>{
+        let scoreA=0, scoreB=0;
+        if(factors.includes('score')){
+            scoreA += a.score.total || 0;
+            scoreB += b.score.total || 0;
+        }
+        if(factors.includes('height')){
+            scoreA -= a.contact.height||160;
+            scoreB -= b.contact.height||160;
+        }
+        if(factors.includes('quan')){
+            scoreA += a.quanTotal||0;
+            scoreB += b.quanTotal||0;
+        }
+        if(factors.includes('gender')){
+            const ga = a.contact.gender||'男';
+            const gb = b.contact.gender||'男';
+            if(genderRule==='pair'){ scoreA += (ga==='女')?10:0; scoreB += (gb==='女')?10:0; }
+            if(genderRule==='separate'){ scoreA += (ga==='男')?10:0; scoreB += (gb==='男')?10:0; }
+        }
+        return scoreB - scoreA;
+    });
+
+    const seats = [];
+    const realDisplayCols = getRealDisplayCols();
+    for(let r=1;r<=classConfig.rows;r++){
+        for(let c=1;c<=realDisplayCols;c++){
+            if(!classConfig.aisles.includes(c)) seats.push({row:r,col:c});
+        }
+    }
+
+    const mustPairs = [];
+    if(mustTogether.length>=2){
+        const s1 = sorted.find(s=>s.name===mustTogether[0]);
+        const s2 = sorted.find(s=>s.name===mustTogether[1]);
+        if(s1&&s2) mustPairs.push([s1,s2]);
+    }
+
+    sorted.forEach(s=>{
+        const pair = mustPairs.find(p=>p.includes(s));
+        if(pair){
+            const p1 = pair[0], p2 = pair[1];
+            if(!seats.some(x=>x.stu===p1)&&!seats.some(x=>x.stu===p2)){
+                const pos = seats.findIndex(x=>!x.stu);
+                if(pos!==-1)seats[pos].stu=p1;
+                if(pos+1<seats.length)seats[pos+1].stu=p2;
+            }
+        }
+    });
+
+    sorted.forEach(s=>{
+        if(seats.some(x=>x.stu===s))return;
+        const pos = seats.findIndex(x=>!x.stu);
+        if(pos!==-1)seats[pos].stu=s;
+    });
+
+    seats.forEach(s=>{
+        if(s.stu)s.stu.seat = {row:s.row,col:s.col};
+    });
+
+    selectedStudents=[];
+    renderSeats();
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    closeModal('#smart-seat-modal');
+    alert('✅ AI智能排座完成！');
+}
+
+function triggerImportStudent() {
+    const input = document.getElementById('import-stu-input');
+    input.value = ''; 
+    input.onchange = (e) => handleFileSelect(e.target.files[0], 'student');
+    input.click();
+}
+function triggerImportScore() {
+    const input = document.getElementById('import-score-input');
+    input.value = '';
+    input.onchange = (e) => handleFileSelect(e.target.files[0], 'score');
+    input.click();
+}
+
+function renderUserManageList(){
+    const container = document.getElementById('user-list');
+    container.innerHTML = '';
+    let showUsers = [...userList];
+    
+    if(currentUser.role === 'admin'){
+        showUsers = userList.filter(u=>
+            u.teamName === currentUser.teamName && 
+            (u.role === 'teacher' || u.role === 'teacher_in_charge')
+        );
+    }
+
+    if(showUsers.length === 0){
+        container.innerHTML = '<p class="text-center">无管辖用户</p>';
+        return;
+    }
+
+    showUsers.forEach(user=>{
+        if(user.role === 'developer' && currentUser.role !== 'developer') return;
+        
+        const item = document.createElement('div');
+        item.className = 'border p-3 rounded flex justify-between items-center';
+        const statusText = user.status === 'locked' ? '【已锁定】' : '【正常】';
+        const teamText = user.teamName ? `【${user.teamName}】` : '';
+        item.innerHTML = `
+            <div>
+                <strong>${user.username}</strong> 
+                <span class="text-xs text-gray-500">${user.role}</span>
+                <span class="text-xs text-primary">${teamText}</span>
+                <span class="${user.status==='locked'?'text-danger':'text-success'} text-xs">${statusText}</span>
+            </div>
+            <div class="flex gap-1">
+                <button class="px-2 py-1 bg-info text-white rounded text-xs" onclick="toggleUserLock('${user.username}')">
+                    ${user.status==='locked'?'解锁':'锁定'}
+                </button>
+                <button class="px-2 py-1 bg-danger text-white rounded text-xs" onclick="deleteUser('${user.username}')">删除</button>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function toggleUserLock(username){
+    const user = userList.find(u=>u.username === username);
+    if(!user) return;
+    if(user.role === 'developer'){alert('开发者账号不可操作');return;}
+    user.status = user.status === 'locked' ? 'normal' : 'locked';
+    cloudSet(CLOUD_KEYS.USERS, userList);
+    renderUserManageList();
+    alert('操作成功');
+}
+
+function deleteUser(username){
+    if(!confirm('确定删除该用户？')) return;
+    const user = userList.find(u=>u.username === username);
+    if(!user) return;
+    if(user.role === 'developer'){alert('开发者账号不可删除');return;}
+    userList = userList.filter(u=>u.username !== username);
+    cloudSet(CLOUD_KEYS.USERS, userList);
+    renderUserManageList();
+    alert('删除成功');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDefaultCloudData();
+    loadCloudAllData();
+    updateRealTime();
+
+    document.getElementById('save-seat-btn').onclick = saveCurrentSeatLayout;
+    document.getElementById('bind-seat-btn').onclick = openBindClassModal;
+    document.getElementById('quantification-btn').onclick = openQuanModal;
+
+    document.getElementById('cfg-aisles').addEventListener('input', function () {
+        this.value = this.value.replace(/，/g, ',');
+    });
+    document.getElementById('role').addEventListener('change', () => {
+        const r = document.getElementById('role').value;
+        const v = r === 'visitor';
+        const dev = r === 'developer';
+        document.getElementById('username-field').classList.toggle('hidden', v || dev);
+        document.getElementById('password-field').classList.toggle('hidden', v);
+    });
+
+    document.getElementById('reg-role').addEventListener('change', function(){
+        const role = this.value;
+        const teamNameInput = document.getElementById('reg-team-name');
+        const teamSelect = document.getElementById('reg-team-select');
+        
+        if(role === 'admin'){
+            teamNameInput.classList.remove('hidden');
+            teamSelect.classList.add('hidden');
+        }else{
+            teamNameInput.classList.add('hidden');
+            teamSelect.classList.remove('hidden');
+            refreshTeamSelect();
+        }
+    });
+
+    document.getElementById('login-form').onsubmit = doLogin;
+    document.getElementById('reg-form').onsubmit = doRegister;
+    document.getElementById('go-register').onclick = () => {
+        document.getElementById('login-page').classList.add('hidden');
+        document.getElementById('register-page').classList.remove('hidden');
+        refreshTeamSelect();
+    };
+    document.getElementById('back-login').onclick = () => {
+        document.getElementById('register-page').classList.add('hidden');
+        document.getElementById('login-page').classList.remove('hidden');
+    };
+    document.getElementById('monitor-auth-btn').onclick = () => {
+        document.getElementById('monitor-name').value = '';
+        document.getElementById('monitor-pwd').value = '123456';
+        document.getElementById('monitor-auth-modal').style.display = 'block';
+    };
+    document.getElementById('logout-btn').onclick = () => location.reload();
+    document.getElementById('switch-class-btn').onclick = openAdminClassSelect;
+    document.getElementById('batch-create-btn').onclick = openBatchCreateModal;
+    
+    document.getElementById('config-btn').onclick = () => {
+        document.getElementById('cfg-classname').value = classConfig.className;
+        document.getElementById('cfg-rows').value = classConfig.rows;
+        document.getElementById('cfg-cols').value = classConfig.cols;
+        document.getElementById('cfg-aisles').value = classConfig.aisles.join(',');
+        document.getElementById('config-modal').style.display = 'block';
+    };
+    document.getElementById('smart-seat-btn').onclick = () => {
+        document.getElementById('smart-seat-modal').style.display='block';
+    };
+    document.getElementById('run-smart-seat').onclick=smartSortSeats;
+    
+    document.getElementById('print-seat-btn').onclick = () => {
+        closeModal('#config-modal');
+        document.getElementById('print-choice-modal').style.display = 'block';
+    };
+    document.getElementById('print-student-btn').onclick = () => {
+        printSeatLayout(true);
+    };
+    document.getElementById('print-teacher-btn').onclick = () => {
+        printSeatLayout(false);
+    };
+    
+    document.getElementById('import-btn').onclick = () => {
+        document.getElementById('import-modal').style.display = 'block';
+    };
+    document.getElementById('rule-set-btn').onclick = () => {
+        renderRuleList();
+        document.getElementById('rule-modal').style.display = 'block';
+    };
+
+    document.getElementById('save-config').onclick = () => {
+        const cn = document.getElementById('cfg-classname').value;
+        const r = +document.getElementById('cfg-rows').value;
+        const c = +document.getElementById('cfg-cols').value;
+        const a = document.getElementById('cfg-aisles').value.split(',').map(Number).filter(Boolean);
+        
+        classConfig = { 
+            ...classConfig, 
+            className: cn, 
+            rows: r, 
+            cols: c, 
+            aisles: a 
+        };
+        
+        document.getElementById('class-name').textContent = cn;
+        selectedStudents = [];
+        initStudents(true);
+        renderCols();
+        renderSeats();
+        saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
+        closeModal('#config-modal');
+        alert("座次表已更新到云端！");
+    };
+
+    document.getElementById('red-light-btn').onclick = () => {
+        if (document.getElementById('red-light-btn').classList.contains('disabled-btn')) return;
+        if (!selectedStudents.length) { alert('请选择学生'); return; }
+        const s = selectedStudents[0];
+        s.red++;
+        if (!s.firstTime) {
+            const d = new Date();
+            s.firstTime = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+        }
+        selectedStudents = [];
+        renderSeats();
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+        let arr = students.filter(x => x.red > 0).sort((a, b) => b.red - a.red);
+        let h = '';
+        arr.forEach((x, i) => {
+            h += `${i + 1}、${x.name} ${x.red}次 ${x.firstTime}<br>`;
+        });
+        document.getElementById('red-stats').innerHTML = h || '无记录';
+        document.getElementById('red-modal').style.display = 'block';
+    };
+    document.getElementById('close-red').onclick = () => closeModal('#red-modal');
+    document.getElementById('clear-btn').onclick = () => {
+        if (document.getElementById('clear-btn').classList.contains('disabled-btn')) return;
+        students.forEach(s => {
+            s.red = 0;
+            s.firstTime = '';
+            s.isRose = false;
+        });
+        selectedStudents = [];
+        renderSeats();
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    };
+    document.querySelectorAll('.close').forEach(b => {
+        b.onclick = () => document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+    });
+    function renderRuleList() {
+        const w = document.getElementById('rule-list');
+        if (!w) return;
+        w.innerHTML = '';
+        classConfig.rules.forEach((ru, i) => {
+            const d = document.createElement('div');
+            d.className = 'rule-item';
+            d.innerHTML = `<input type="text" value="${ru.name}" class="border p-1 w-32 rule-name"><input type="number" value="${ru.score}" class="border p-1 w-16 rule-score"><button onclick="delRule(${i})" class="bg-danger text-white px-1 rounded text-xs">删除</button>`;
+            w.appendChild(d);
+        });
+    }
+    window.delRule = i => {
+        classConfig.rules.splice(i, 1);
+        renderRuleList();
+    };
+    document.getElementById('add-rule').onclick = () => {
+        classConfig.rules.push({ name: '新项', score: -1 });
+        renderRuleList();
+    };
+    document.getElementById('save-rule').onclick = () => {
+        const nn = document.querySelectorAll('.rule-name');
+        const ss = document.querySelectorAll('.rule-score');
+        const ru = [];
+        for (let i = 0; i < nn.length; i++) ru.push({ name: nn[i].value, score: +ss[i].value });
+        classConfig.rules = ru;
+        saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
+        alert('保存成功');
+        closeModal('#rule-modal');
+    };
+
+    document.getElementById('contact-photo').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+            const img = document.getElementById('contact-photo-preview');
+            img.src = ev.target.result;
+            img.style.display = 'block';
+        };
+        r.readAsDataURL(f);
+    });
+    document.getElementById('save-contact-info').onclick = () => {
+        const name = document.getElementById('contact-name').value;
+        const stu = students.find(s => s.name === name);
+        if (!stu) {
+            alert('学生不存在');
+            return;
+        }
+        stu.contact.gender = document.getElementById('contact-gender').value;
+        stu.contact.age = document.getElementById('contact-age').value;
+        stu.contact.address = document.getElementById('contact-address').value;
+        stu.contact.idcard = document.getElementById('contact-idcard').value;
+        stu.contact.guard1 = document.getElementById('contact-guard1').value;
+        stu.contact.guard2 = document.getElementById('contact-guard2').value;
+        stu.contact.remark = document.getElementById('contact-remark').value;
+        const img = document.getElementById('contact-photo-preview');
+        if (img.style.display === 'block' && img.src.startsWith('blob:')) {
+            stu.contact.photo = img.src;
+        }
+        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+        alert('保存成功');
+        closeModal('#contact-edit-modal');
+    };
+
+    document.getElementById('user-manage-btn').onclick = () => {
+        renderUserManageList();
+        document.getElementById('user-manage-modal').style.display = 'block';
+    };
+});
 </script>
 </body>
 </html>
