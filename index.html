@@ -36,7 +36,7 @@
             background: #f0f8ff;
             font-family: Arial, sans-serif;
             height: 100vh;
-            overflow: hidden;
+           
         }
         .login-bg {
             background: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
@@ -304,6 +304,14 @@
                 display: none !important; 
             }
         }
+/* ========== 关键修改1：座次表容器添加滚动条 ========== */
+        .seat-container-wrapper {
+            flex: 1;
+            min-height: 0;
+            overflow: auto; /* 同时开启水平和垂直滚动 */
+            padding: 0 4px;
+        }
+        /* ========== 关键修改结束 ========== */
     </style>
 </head>
 <body>
@@ -479,7 +487,7 @@
     <div class="bg-white rounded shadow p-2 my-2 flex-1 min-h-0 flex flex-col">
         <div class="flex justify-between items-center mb-2 flex-shrink-0">
             <div class="text-base font-bold text-primary" id="class-name">初三(1)班</div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap"> <!-- 添加flex-wrap，按钮过多时自动换行 -->
                 <button id="config-btn" class="hidden bg-accent text-white px-2 py-1 rounded text-xs"><i class="fa fa-cog"></i> 座次表设置</button>
                 <button id="import-btn" class="hidden bg-success text-white px-2 py-1 rounded text-xs"><i class="fa fa-upload"></i> 导入数据</button>
                 <button id="monitor-auth-btn" class="hidden bg-info text-white px-2 py-1 rounded text-xs"><i class="fa fa-user-plus"></i> 班长授权</button>
@@ -494,10 +502,12 @@
                 <button id="view-quan-file-btn" class="hidden bg-warning text-white px-2 py-1 rounded text-xs"><i class="fa fa-file-text-o"></i> 量化档案</button>
             </div>
         </div>
-
+ <!-- ========== 关键修改3：座次表区域包裹滚动容器 ========== -->
+<div class="seat-container-wrapper">
         <div class="teacher-desk mx-auto">讲 台</div>
         <div id="col-header" class="grid gap-1 mb-1 flex-shrink-0"></div>
-        <div id="seat-grid" class="grid gap-1 flex-1"></div>
+        <div id="seat-grid" class="grid gap-1"></div>
+<!-- ========== 关键修改结束 ========== -->
     </div>
 
     <div class="grid grid-cols-7 gap-1 mt-2 flex-shrink-0">
@@ -647,11 +657,11 @@
                 </select>
             </div>
             <div class="border p-2 rounded">
-                <label class="font-bold text-primary block mb-1">必须相邻（姓名1,姓名2）</label>
+                <label class="font-bold text-primary block mb-1">必须相邻（姓名1,姓名2)(用英文逗号分隔）</label>
                 <input id="must-together" class="w-full border p-1" placeholder="例：张三,李四">
             </div>
             <div class="border p-2 rounded">
-                <label class="font-bold text-primary block mb-1">禁止相邻（姓名1,姓名2）</label>
+                <label class="font-bold text-primary block mb-1">禁止相邻（姓名1,姓名2)(用英文逗号分隔）</label>
                 <input id="forbid-together" class="w-full border p-1" placeholder="例：王五,赵六">
             </div>
             <button id="run-smart-seat" class="bg-success text-white p-2 rounded w-full">✅ 执行AI智能排座</button>
