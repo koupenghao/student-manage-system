@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 📱 手机端修改1：视口适配，支持缩放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2, minimum-scale=1, user-scalable=yes">
     <title>学生自主管理云系统</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,7 +37,10 @@
             background: #f0f8ff;
             font-family: Arial, sans-serif;
             height: 100vh;
-           
+            /* 📌 修改2：取消全局禁止滚动，让页面可滚动 */
+            /* overflow: hidden; */
+            /* 📱 手机端修改：底部安全区适配 */
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .login-bg {
             background: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
@@ -50,6 +54,12 @@
             font-size: 16px;
             font-weight: 500;
             border: 2px solid #ccc !important;
+ /* 📱 手机端修改：座位最小点击尺寸 */
+            min-height: 44px;
+            min-width: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .seat.selected { 
             border: 2px solid #e53935 !important; 
@@ -310,9 +320,24 @@
             min-height: 0;
             overflow: auto; /* 同时开启水平和垂直滚动 */
             padding: 0 4px;
+ /* 📱 手机端修改：流畅滚动 */
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
         }
-        /* ========== 关键修改结束 ========== */
-    </style>
+  /* 📱 手机端修改4：全局触控优化 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        button {
+            touch-action: manipulation; /* 消除300ms延迟 */
+            min-height: 44px; /* 手机最小可点尺寸 */
+        }
+        /* 按钮自动换行，不溢出 */
+        .btn-bar {
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+        }
+  </style>
 </head>
 <body>
 
