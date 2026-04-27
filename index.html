@@ -337,6 +337,17 @@
             flex-wrap: wrap !important;
             gap: 6px !important;
         }
+/* 只加这一段，其他代码完全不动 */
+#seat-header-row,
+#seat-container .seat-row {
+  display: flex !important;
+}
+#seat-header-row > div,
+#seat-container .seat-row > div {
+  flex: 0 0 auto !important;
+  min-width: unset !important;
+  width: 4rem !important; /* 跟座位宽度一致 */
+}
   </style>
 </head>
 <body>
