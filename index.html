@@ -1898,7 +1898,10 @@ function processImportLines(lines, type) {
 function openContactImportChoice() {
     const c = confirm('选择操作：\n确定 = 批量导入文件\n取消 = 单个录入当前选中学生');
     if (c) {
-        document.getElementById('import-contact-input').click();
+        const input = document.getElementById('import-contact-input');
+    input.value = '';
+    input.onchange = (e) => handleFileSelect(e.target.files[0], 'contact');
+    input.click();
     } else {
         if (selectedStudents.length !== 1) {
             alert('请选1名学生');
