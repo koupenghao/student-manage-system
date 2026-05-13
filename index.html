@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 📱 手机端修改1：视口适配，支持缩放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2, minimum-scale=1, user-scalable=yes">
     <title>学生自主管理云系统</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -37,9 +36,6 @@
             background: #f0f8ff;
             font-family: Arial, sans-serif;
             height: 100vh;
-            /* 📌 修改2：取消全局禁止滚动，让页面可滚动 */
-            /* overflow: hidden; */
-            /* 📱 手机端修改：底部安全区适配 */
             padding-bottom: env(safe-area-inset-bottom);
         }
         .login-bg {
@@ -54,7 +50,6 @@
             font-size: 16px;
             font-weight: 500;
             border: 2px solid #ccc !important;
- /* 📱 手机端修改：座位最小点击尺寸 */
             min-height: 44px;
             min-width: 50px;
             display: flex;
@@ -314,40 +309,35 @@
                 display: none !important; 
             }
         }
-/* ========== 关键修改1：座次表容器添加滚动条 ========== */
         .seat-container-wrapper {
             flex: 1;
             min-height: 0;
-            overflow: auto; /* 同时开启水平和垂直滚动 */
+            overflow: auto;
             padding: 0 4px;
- /* 📱 手机端修改：流畅滚动 */
             -webkit-overflow-scrolling: touch;
             touch-action: pan-x pan-y;
         }
-  /* 📱 手机端修改4：全局触控优化 */
         * {
             -webkit-tap-highlight-color: transparent;
         }
         button {
-            touch-action: manipulation; /* 消除300ms延迟 */
-            min-height: 44px; /* 手机最小可点尺寸 */
+            touch-action: manipulation;
+            min-height: 44px;
         }
-        /* 按钮自动换行，不溢出 */
         .btn-bar {
             flex-wrap: wrap !important;
             gap: 6px !important;
         }
-/* 只加这一段，其他代码完全不动 */
-#seat-header-row,
-#seat-container .seat-row {
-  display: flex !important;
-}
-#seat-header-row > div,
-#seat-container .seat-row > div {
-  flex: 0 0 auto !important;
-  min-width: unset !important;
-  width: 4rem !important; /* 跟座位宽度一致 */
-}
+        #seat-header-row,
+        #seat-container .seat-row {
+          display: flex !important;
+        }
+        #seat-header-row > div,
+        #seat-container .seat-row > div {
+          flex: 0 0 auto !important;
+          min-width: unset !important;
+          width: 4rem !important;
+        }
   </style>
 </head>
 <body>
@@ -479,12 +469,13 @@
 <div id="bind-class-modal" class="modal">
     <div class="modal-content">
         <span class="close">&times;</span>
-        <h3 class="font-bold text-primary text-center mb-4">🔗 绑定/解绑 班级座次表</h3>
+        <h3 class="font-bold text-primary text-center mb-4">🔗 绑定班级座次表</h3>
         
         <div class="space-y-3">
             <div>
-                <label class="block font-medium mb-1">选择团队/班级</label>
-                <select id="bind-team-select" class="w-full border p-2 rounded"></select>
+                <label class="block font-medium mb-1">当前绑定班级</label>
+                <input type="text" id="current-bind-class" class="w-full border p-2 rounded bg-gray-100" readonly>
+                <p class="text-xs text-gray-500">自动获取您当前所在的班级，无需修改</p>
             </div>
             <div>
                 <label class="block font-medium mb-1">绑定登录账号</label>
@@ -522,8 +513,8 @@
 
     <div class="bg-white rounded shadow p-2 my-2 flex-1 min-h-0 flex flex-col">
         <div class="flex justify-between items-center mb-2 flex-shrink-0">
-            <div class="text-base font-bold text-primary" id="class-name">初三(1)班</div>
-            <div class="flex gap-2 flex-wrap"> <!-- 添加flex-wrap，按钮过多时自动换行 -->
+            <div class="text-base font-bold text-primary" id="class-name"></div>
+            <div class="flex gap-2 flex-wrap">
                 <button id="config-btn" class="hidden bg-accent text-white px-2 py-1 rounded text-xs"><i class="fa fa-cog"></i> 座次表设置</button>
                 <button id="import-btn" class="hidden bg-success text-white px-2 py-1 rounded text-xs"><i class="fa fa-upload"></i> 导入数据</button>
                 <button id="monitor-auth-btn" class="hidden bg-info text-white px-2 py-1 rounded text-xs"><i class="fa fa-user-plus"></i> 班长授权</button>
@@ -538,12 +529,11 @@
                 <button id="view-quan-file-btn" class="hidden bg-warning text-white px-2 py-1 rounded text-xs"><i class="fa fa-file-text-o"></i> 量化档案</button>
             </div>
         </div>
- <!-- ========== 关键修改3：座次表区域包裹滚动容器 ========== -->
-<div class="seat-container-wrapper">
-        <div class="teacher-desk mx-auto">讲 台</div>
-        <div id="col-header" class="grid gap-1 mb-1 flex-shrink-0"></div>
-        <div id="seat-grid" class="grid gap-1"></div>
-<!-- ========== 关键修改结束 ========== -->
+        <div class="seat-container-wrapper">
+            <div class="teacher-desk mx-auto">讲 台</div>
+            <div id="col-header" class="grid gap-1 mb-1 flex-shrink-0"></div>
+            <div id="seat-grid" class="grid gap-1"></div>
+        </div>
     </div>
 
     <div class="grid grid-cols-7 gap-1 mt-2 flex-shrink-0">
@@ -555,9 +545,8 @@
         <button id="contact-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-address-book"></i><br>通讯</button>
         <button id="announcement-btn" class="bg-white p-1 rounded shadow text-center text-xs"><i class="fa fa-bullhorn text-danger"></i><br>公告</button>
   </div>
-<div class="text-center text-xs text-gray-500 mt-1">
+    <div class="text-center text-xs text-gray-500 mt-1">
         开发者：寇鹏浩@版权所有
-    </div>
     </div>
 </div>
 
@@ -618,7 +607,7 @@
         <span class="close">&times;</span>
         <h3 class="font-bold text-primary mb-3">学生成绩</h3>
         <div id="score-info" class="text-sm space-y-2"></div>
-        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#score-modal')">关闭</button>
+        <button class="mt-3 bg-primary text-white p-2 rounded w-full" onclick="closeModal('#score-modal')">关闭</button>
     </div>
 </div>
 
@@ -627,7 +616,7 @@
         <span class="close">&times;</span>
         <h3 class="font-bold text-primary mb-3">学生通讯信息</h3>
         <div id="contact-info" class="text-sm space-y-2"></div>
-        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#contact-modal')">关闭</button>
+        <button class="mt-3 bg-primary text-white p-2 rounded w-full" onclick="closeModal('#contact-modal')">关闭</button>
     </div>
 </div>
 
@@ -640,7 +629,7 @@
         <div class="chart-container">
             <canvas id="scoreChart"></canvas>
         </div>
-        <button class="mt-3 bg-primary text-white px-3 py-1 rounded w-full" onclick="closeModal('#growth-modal')">关闭</button>
+        <button class="mt-3 bg-primary text-white p-2 rounded w-full" onclick="closeModal('#growth-modal')">关闭</button>
     </div>
 </div>
 
@@ -740,7 +729,7 @@
         <span class="close">&times;</span>
         <h3 class="font-bold text-primary">打卡统计</h3>
         <div id="red-stats" class="my-3 text-sm leading-7"></div>
-        <button id="close-red" class="bg-primary text-white px-3 py-1 rounded">关闭</button>
+        <button id="close-red" class="bg-primary text-white p-2 rounded">关闭</button>
     </div>
 </div>
 
@@ -764,7 +753,7 @@
             </div>
             <img id="evidence-preview" class="evidence-preview">
             <video id="evidence-video" class="evidence-preview" controls></video>
-            <audio id="evidence-audio" class="evidence-preview mt-2" controls></audio>
+            <audio id="evidence-audio" class="evidence-preview" controls></audio>
         </div>
         <div class="mt-3 flex gap-2">
             <button class="tab-btn active" data-tab="score">扣分分值</button>
@@ -849,12 +838,26 @@ const CLOUD_KEYS = {
     FILES: 'cloud_system_files',
     NOTICES: 'cloud_system_notices',
     BIND_SEAT: 'cloud_bind_seat_layout',
-    USER_BIND: 'cloud_user_bind_class'
+    USER_BIND: 'cloud_user_bind_class',
+    ALL_CLASS_LIST: 'all_saved_classes'
 };
 
 let userList = [];
 
 const DEVELOPER_PWD = 'kph1234@sina.com';
+
+function saveClassToList(className) {
+    if (!className) return;
+    let list = JSON.parse(localStorage.getItem(CLOUD_KEYS.ALL_CLASS_LIST)) || [];
+    if (!list.includes(className)) {
+        list.push(className);
+        localStorage.setItem(CLOUD_KEYS.ALL_CLASS_LIST, JSON.stringify(list));
+    }
+}
+
+function getAllSavedClasses() {
+    return JSON.parse(localStorage.getItem(CLOUD_KEYS.ALL_CLASS_LIST)) || [];
+}
 
 function random6Code() {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -886,7 +889,8 @@ function cloudSet(key, data) {
 function initDefaultCloudData() {
     if (!cloudGet(CLOUD_KEYS.USERS)) {
         const defaultUsers = [
-            {role:'teacher_in_charge', username:'班主任', pwd:'123456', isDefault:true, status:'normal', manager:'developer', teamName:'默认班级'},
+            {role:'teacher_in_charge', username:'班主任1', pwd:'123456', isDefault:true, status:'normal', manager:'developer', teamName:'初三1班'},
+            {role:'teacher_in_charge', username:'班主任2', pwd:'123456', isDefault:true, status:'normal', manager:'developer', teamName:'初三2班'},
             {role:'monitor', username:'班长', pwd:'123456', status:'normal', manager:'developer', teamName:'默认班级'},
             {role:'developer', username:'开发者', pwd:DEVELOPER_PWD, status:'normal', manager:'none', teamName:'系统'}
         ];
@@ -898,6 +902,9 @@ function initDefaultCloudData() {
     }
     if (!cloudGet(CLOUD_KEYS.USER_BIND)) {
         cloudSet(CLOUD_KEYS.USER_BIND, {});
+    }
+    if (!cloudGet(CLOUD_KEYS.ALL_CLASS_LIST)) {
+        cloudSet(CLOUD_KEYS.ALL_CLASS_LIST, []);
     }
 }
 
@@ -919,13 +926,25 @@ function loadBindedSeatLayout(team) {
     }
 }
 
-function autoLoadUserBindClass(username){
+function getUserBindClasses(username) {
     const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
-    const bindTeam = bindMap[username];
-    if(bindTeam){
-        const hasBind = loadBindedSeatLayout(bindTeam);
+    const allBinds = [];
+    for(let user in bindMap){
+        if(user === username){
+            allBinds.push(bindMap[user]);
+        }
+    }
+    return [...new Set(allBinds)];
+}
+
+function autoLoadUserBindClass(username){
+    const bindClasses = getUserBindClasses(username);
+    if(bindClasses.length > 0){
+        const firstClass = bindClasses[0];
+        const hasBind = loadBindedSeatLayout(firstClass);
         if(hasBind){
-            currentUser.teamName = bindTeam;
+            currentUser.teamName = firstClass;
+            currentUser.bindClasses = bindClasses;
             return true;
         }
     }
@@ -933,44 +952,79 @@ function autoLoadUserBindClass(username){
 }
 
 function loadTeamData(team) {
-    const savedStudents = cloudGet(CLOUD_KEYS.STUDENTS + '_' + team);
+    if (!currentUser || !currentUser.username) return;
+    
+    const userUniqueKey = `${currentUser.username}_${team}`;
+    
+    const savedStudents = cloudGet(CLOUD_KEYS.STUDENTS + '_' + userUniqueKey);
     if(savedStudents) students = savedStudents;
     
-    const savedConfig = cloudGet(CLOUD_KEYS.CONFIG + '_' + team);
+    const savedConfig = cloudGet(CLOUD_KEYS.CONFIG + '_' + userUniqueKey);
     if(savedConfig) classConfig = savedConfig;
     
-    const savedNotices = cloudGet(CLOUD_KEYS.NOTICES + '_' + team);
+    const savedNotices = cloudGet(CLOUD_KEYS.NOTICES + '_' + userUniqueKey);
     if(savedNotices) noticeList = savedNotices;
 }
 
 function loadSystemData() {
-    const team = currentUser?.teamName || '默认班级';
-    if(currentUser && autoLoadUserBindClass(currentUser.username)){
-        return;
+    if (!currentUser) return;
+    
+    if (currentUser.role === 'teacher' || currentUser.role === 'teacher_in_charge') {
+        const bindSuccess = autoLoadUserBindClass(currentUser.username);
+        if (bindSuccess) {
+            return;
+        }
     }
+
+    const team = currentUser.teamName || '默认班级';
     const hasBind = loadBindedSeatLayout(team);
     if (hasBind) return;
     loadTeamData(team);
 }
 
 function saveTeamData(key, team, data) {
-    cloudSet(key + '_' + team, data);
+    if (!currentUser || !currentUser.username) return;
+    const userUniqueKey = `${currentUser.username}_${team}`;
+    cloudSet(key + '_' + userUniqueKey, data);
 }
 
+// 【核心】保存座次 + 自动绑定当前账号 + 班级 + 座次表
 function saveCurrentSeatLayout() {
-    const team = currentUser.teamName;
-    if (!team) {
-        alert('请先设置班级');
+    if (!currentUser || !currentUser.username) {
+        alert('请先登录！');
         return;
     }
-    const data = {
-        className: classConfig.className,
+
+    const team = classConfig.className || currentUser.teamName;
+    if (!team) {
+        alert('请先设置班级名称！');
+        return;
+    }
+
+    // 1. 保存座次表到班级
+    const bindData = {
         config: { ...classConfig },
-        studentData: [...students],
-        saveTime: new Date().toLocaleString()
+        studentData: [...students]
     };
-    cloudSet('seat_backup_' + team, data);
-    alert('✅ 座次表已永久保存到云端！');
+    cloudSet(CLOUD_KEYS.BIND_SEAT + '_' + team, bindData);
+
+    // 2. 自动绑定当前班主任账号到这个班级
+    const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
+    bindMap[currentUser.username] = team;
+    cloudSet(CLOUD_KEYS.USER_BIND, bindMap);
+
+    // 3. 班级加入全局班级列表（管理员可见）
+    saveClassToList(team);
+    refreshAdminClassSelect();
+
+    // 4. 同步保存个人数据
+    saveTeamData(CLOUD_KEYS.STUDENTS, team, students);
+    saveTeamData(CLOUD_KEYS.CONFIG, team, classConfig);
+
+    alert(`✅ 保存并绑定成功！
+账号：${currentUser.username}
+班级：${team}
+下次登录自动加载本班座次表！`);
 }
 
 function bindSeatToClass() {
@@ -991,15 +1045,9 @@ function bindSeatToClass() {
 }
 
 function openBindClassModal(){
-    const sel = document.getElementById('bind-team-select');
-    sel.innerHTML = '';
-    const allTeams = [...new Set(userList.map(u=>u.teamName).filter(t=>t&&t!='系统'))];
-    allTeams.forEach(team=>{
-        const opt = document.createElement('option');
-        opt.value = team;
-        opt.textContent = team;
-        sel.appendChild(opt);
-    });
+    const currentClassName = classConfig.className || (currentUser ? currentUser.teamName : '默认班级');
+    document.getElementById('current-bind-class').value = currentClassName;
+    
     document.getElementById('bind-username').value = '';
     refreshBindUserList();
     document.getElementById('bind-class-modal').style.display = 'block';
@@ -1008,40 +1056,49 @@ function openBindClassModal(){
 function refreshBindUserList(){
     const container = document.getElementById('bind-user-list');
     const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
+    const currentClassName = document.getElementById('current-bind-class').value;
+    
     container.innerHTML = '';
-
-    if(Object.keys(bindMap).length === 0){
-        container.innerHTML = '<div class="text-gray-500 text-center">暂无绑定用户</div>';
-        return;
-    }
+    let hasBind = false;
 
     for(let username in bindMap){
         const team = bindMap[username];
-        const item = document.createElement('div');
-        item.className = 'flex justify-between items-center border-b pb-1 mb-1';
-        item.innerHTML = `
-            <span>${username} → ${team}</span>
-            <button onclick="unbindUser('${username}')" class="bg-danger text-white px-2 py-1 rounded text-xs">解绑</button>
-        `;
-        container.appendChild(item);
+        if(team === currentClassName){
+            hasBind = true;
+            const item = document.createElement('div');
+            item.className = 'flex justify-between items-center border-b pb-1 mb-1';
+            item.innerHTML = `
+                <span>${username} → ${team}</span>
+                <button onclick="unbindUser('${username}')" class="bg-danger text-white px-2 py-1 rounded text-xs">解绑</button>
+            `;
+            container.appendChild(item);
+        }
+    }
+    
+    if(!hasBind){
+        container.innerHTML = '<div class="text-gray-500 text-center">暂无绑定用户</div>';
     }
 }
 
 function unbindUser(username){
     if(!confirm(`确定解绑用户【${username}】吗？`)) return;
     const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
-    delete bindMap[username];
-    cloudSet(CLOUD_KEYS.USER_BIND, bindMap);
-    refreshBindUserList();
-    alert(`✅ 用户【${username}】已解绑`);
+    const currentClassName = document.getElementById('current-bind-class').value;
+    
+    if(bindMap[username] === currentClassName){
+        delete bindMap[username];
+        cloudSet(CLOUD_KEYS.USER_BIND, bindMap);
+        refreshBindUserList();
+        alert(`✅ 用户【${username}】已解绑`);
+    }
 }
 
 function doBindSeatToUser(){
-    const targetTeam = document.getElementById('bind-team-select').value;
+    const targetTeam = document.getElementById('current-bind-class').value;
     const targetUser = document.getElementById('bind-username').value.trim();
     
     if(!targetTeam || !targetUser){
-        alert('请选择班级并输入账号！');
+        alert('请输入要绑定的账号！');
         return;
     }
     
@@ -1050,6 +1107,12 @@ function doBindSeatToUser(){
         alert('该账号不存在！');
         return;
     }
+    
+    const bindData = {
+        config: { ...classConfig },
+        studentData: [...students]
+    };
+    cloudSet(CLOUD_KEYS.BIND_SEAT + '_' + targetTeam, bindData);
     
     const bindMap = cloudGet(CLOUD_KEYS.USER_BIND) || {};
     bindMap[targetUser] = targetTeam;
@@ -1409,17 +1472,45 @@ function saveQuanToCloudFile(n,r,s,t,e){
 
 document.getElementById('view-quan-file-btn').onclick=()=>{
     if(document.getElementById('view-quan-file-btn').classList.contains('disabled-btn'))return;
-    const cf=cloudGet(CLOUD_KEYS.FILES)||{};
-    const l=document.getElementById('quan-file-list');l.innerHTML='';
-    if(!Object.keys(cf).length){l.innerHTML='<p>无文件</p>';}else{
-        for(let k in cf){
-            const it=cf[k];const d=document.createElement('div');d.className='p-2 border rounded';
-            d.innerHTML=`<div class="font-bold">${it.title}</div><div class="text-xs">${it.ct}</div><button onclick="openQuanCloudFile('${k}')" class="mt-1 bg-primary text-white px-2 py-1 rounded text-xs">打开</button>`;
-            l.appendChild(d);
-        }
-    }
+    refreshQuanFileList();
     document.getElementById('quan-file-modal').style.display='block';
 };
+
+function refreshQuanFileList(){
+    const cf=cloudGet(CLOUD_KEYS.FILES)||{};
+    const l=document.getElementById('quan-file-list');l.innerHTML='';
+    if(!Object.keys(cf).length){
+        l.innerHTML='<p>无文件</p>';
+        return;
+    }
+    for(let k in cf){
+        const it=cf[k];
+        const d=document.createElement('div');
+        d.className='p-2 border rounded flex justify-between items-center';
+        d.innerHTML=`
+            <div>
+                <div class="font-bold">${it.title}</div>
+                <div class="text-xs text-gray-500">${it.ct}</div>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="openQuanCloudFile('${k}')" class="bg-primary text-white px-2 py-1 rounded text-xs">打开</button>
+                <button onclick="deleteQuanCloudFile('${k}')" class="bg-danger text-white px-2 py-1 rounded text-xs">删除</button>
+            </div>
+        `;
+        l.appendChild(d);
+    }
+}
+
+function deleteQuanCloudFile(fileKey){
+    if(!confirm('确定要删除这个量化档案文件吗？\n删除后无法恢复！')) return;
+    
+    const cloudFiles = cloudGet(CLOUD_KEYS.FILES) || {};
+    delete cloudFiles[fileKey];
+    cloudSet(CLOUD_KEYS.FILES, cloudFiles);
+    
+    refreshQuanFileList();
+    alert('✅ 文件已删除');
+}
 
 function openQuanCloudFile(k){
     const cf=cloudGet(CLOUD_KEYS.FILES)||{};
@@ -1540,8 +1631,8 @@ function applyPermission() {
     document.getElementById('bind-seat-btn').classList.add('hidden');
 
     if(r==='visitor'){['red-light-btn','clear-btn','statistics-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
-    if(r==='monitor'){['quantification-btn','statistics-btn','announcement-btn','change-seats-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
-    if(r==='teacher'){['scores-btn','quantification-btn','growth-btn','statistics-btn','announcement-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn'));}
+    if(r==='monitor'){['quantification-btn','statistics-btn','announcement-btn','change-seats-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn')); document.getElementById('view-quan-file-btn').classList.remove('hidden');}
+    if(r==='teacher'){['scores-btn','quantification-btn','growth-btn','statistics-btn','announcement-btn','red-light-btn','clear-btn'].forEach(id=>document.getElementById(id).classList.remove('disabled-btn')); document.getElementById('view-quan-file-btn').classList.remove('hidden');}
     
     if(r==='admin'){
         document.getElementById('user-manage-btn').classList.remove('hidden');
@@ -1578,22 +1669,30 @@ function applyPermission() {
         document.getElementById('save-seat-btn').classList.remove('hidden');
         document.getElementById('bind-seat-btn').classList.remove('hidden');
     }
+
+    if(currentUser.bindClasses && currentUser.bindClasses.length > 1){
+        document.getElementById('switch-class-btn').classList.remove('hidden');
+    }
 }
 
-function openAdminClassSelect(){
+function refreshAdminClassSelect() {
     const sel = document.getElementById('admin-class-select');
     sel.innerHTML = '';
-    const adminTeams = [...new Set(userList.filter(u=>u.manager === currentUser.username).map(u=>u.teamName).filter(t=>t))];
-    if(adminTeams.length === 0){
-        alert('你暂无管辖班级，请先注册创建班级！');
-        return;
-    }
-    adminTeams.forEach(team=>{
+    
+    const savedClasses = getAllSavedClasses();
+    const userClasses = [...new Set(userList.map(u => u.teamName).filter(t => t && t !== '系统'))];
+    const allClasses = [...new Set([...savedClasses, ...userClasses])];
+    
+    allClasses.forEach(team => {
         const opt = document.createElement('option');
         opt.value = team;
         opt.textContent = team;
         sel.appendChild(opt);
     });
+}
+
+function openAdminClassSelect(){
+    refreshAdminClassSelect();
     document.getElementById('admin-select-class-modal').style.display = 'block';
 }
 
@@ -1684,7 +1783,7 @@ function doLogin(e){
     }
     currentUser = targetUser;
     
-    if(r === 'admin'){
+    if(r === 'admin' || r === 'developer'){
         setTimeout(()=>openAdminClassSelect(),300);
     }
     
@@ -1692,12 +1791,14 @@ function doLogin(e){
 }
 
 function refreshMainPage(){
-    document.getElementById('current-user').textContent=currentUser.username;
-    document.getElementById('class-name').textContent=classConfig.className;
-    students = [];
-    noticeList = [];
     loadSystemData();
-    initStudents(true);
+    
+    document.getElementById('class-name').textContent = classConfig.className;
+    document.getElementById('current-user').textContent = currentUser.username;
+    
+    if(students.length === 0){
+        initStudents(true);
+    }
     renderCols();
     renderSeats();
     applyPermission();
@@ -1771,6 +1872,169 @@ document.getElementById('save-monitor-auth').onclick=()=>{
     closeModal('#monitor-auth-modal');
 };
 
+document.getElementById('logout-btn').onclick = () => location.reload();
+document.getElementById('switch-class-btn').onclick = openAdminClassSelect;
+document.getElementById('batch-create-btn').onclick = openBatchCreateModal;
+
+document.getElementById('config-btn').onclick = () => {
+    document.getElementById('cfg-classname').value = classConfig.className;
+    document.getElementById('cfg-rows').value = classConfig.rows;
+    document.getElementById('cfg-cols').value = classConfig.cols;
+    document.getElementById('cfg-aisles').value = classConfig.aisles.join(',');
+    document.getElementById('config-modal').style.display = 'block';
+};
+document.getElementById('smart-seat-btn').onclick = () => {
+    document.getElementById('smart-seat-modal').style.display='block';
+};
+document.getElementById('run-smart-seat').onclick=smartSortSeats;
+
+document.getElementById('print-seat-btn').onclick = () => {
+    closeModal('#config-modal');
+    document.getElementById('print-choice-modal').style.display = 'block';
+};
+document.getElementById('print-student-btn').onclick = () => {
+    printSeatLayout(true);
+};
+document.getElementById('print-teacher-btn').onclick = () => {
+    printSeatLayout(false);
+};
+
+document.getElementById('import-btn').onclick = () => {
+    document.getElementById('import-modal').style.display = 'block';
+};
+document.getElementById('rule-set-btn').onclick = () => {
+    renderRuleList();
+    document.getElementById('rule-modal').style.display = 'block';
+};
+
+document.getElementById('save-config').onclick = () => {
+    const cn = document.getElementById('cfg-classname').value;
+    const r = +document.getElementById('cfg-rows').value;
+    const c = +document.getElementById('cfg-cols').value;
+    const a = document.getElementById('cfg-aisles').value.split(',').map(Number).filter(Boolean);
+    
+    classConfig = { 
+        ...classConfig, 
+        className: cn, 
+        rows: r, 
+        cols: c, 
+        aisles: a 
+    };
+    
+    document.getElementById('class-name').textContent = cn;
+    selectedStudents = [];
+    initStudents(true);
+    renderCols();
+    renderSeats();
+    saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
+    closeModal('#config-modal');
+    alert("座次表已更新到云端！");
+};
+
+document.getElementById('red-light-btn').onclick = () => {
+    if (document.getElementById('red-light-btn').classList.contains('disabled-btn')) return;
+    if (!selectedStudents.length) { alert('请选择学生'); return; }
+    const s = selectedStudents[0];
+    s.red++;
+    if (!s.firstTime) {
+        const d = new Date();
+        s.firstTime = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,0)}:${String(d.getMinutes()).padStart(2,0)}:${String(d.getSeconds()).padStart(2,0)}`;
+    }
+    selectedStudents = [];
+    renderSeats();
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    let arr = students.filter(x => x.red > 0).sort((a, b) => b.red - a.red);
+    let h = '';
+    arr.forEach((x, i) => {
+        h += `${i + 1}、${x.name} ${x.red}次 ${x.firstTime}<br>`;
+    });
+    document.getElementById('red-stats').innerHTML = h || '无记录';
+    document.getElementById('red-modal').style.display = 'block';
+};
+document.getElementById('close-red').onclick = () => closeModal('#red-modal');
+document.getElementById('clear-btn').onclick = () => {
+    if (document.getElementById('clear-btn').classList.contains('disabled-btn')) return;
+    students.forEach(s => {
+        s.red = 0;
+        s.firstTime = '';
+        s.isRose = false;
+    });
+    selectedStudents = [];
+    renderSeats();
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+};
+document.querySelectorAll('.close').forEach(b => {
+    b.onclick = () => document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+});
+function renderRuleList() {
+    const w = document.getElementById('rule-list');
+    if (!w) return;
+    w.innerHTML = '';
+    classConfig.rules.forEach((ru, i) => {
+        const d = document.createElement('div');
+        d.className = 'rule-item';
+        d.innerHTML = `<input type="text" value="${ru.name}" class="border p-1 w-32 rule-name"><input type="number" value="${ru.score}" class="border p-1 w-16 rule-score"><button onclick="delRule(${i})" class="bg-danger text-white px-1 rounded text-xs">删除</button>`;
+        w.appendChild(d);
+    });
+}
+window.delRule = i => {
+    classConfig.rules.splice(i, 1);
+    renderRuleList();
+};
+document.getElementById('add-rule').onclick = () => {
+    classConfig.rules.push({ name: '新项', score: -1 });
+    renderRuleList();
+};
+document.getElementById('save-rule').onclick = () => {
+    const nn = document.querySelectorAll('.rule-name');
+    const ss = document.querySelectorAll('.rule-score');
+    const ru = [];
+    for (let i = 0; i < nn.length; i++) ru.push({ name: nn[i].value, score: +ss[i].value });
+    classConfig.rules = ru;
+    saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
+    alert('保存成功');
+    closeModal('#rule-modal');
+};
+
+document.getElementById('contact-photo').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+        const img = document.getElementById('contact-photo-preview');
+        img.src = ev.target.result;
+        img.style.display = 'block';
+    };
+    r.readAsDataURL(f);
+});
+document.getElementById('save-contact-info').onclick = () => {
+    const name = document.getElementById('contact-name').value;
+    const stu = students.find(s => s.name === name);
+    if (!stu) {
+        alert('学生不存在');
+        return;
+    }
+    stu.contact.gender = document.getElementById('contact-gender').value;
+    stu.contact.age = document.getElementById('contact-age').value;
+    stu.contact.address = document.getElementById('contact-address').value;
+    stu.contact.idcard = document.getElementById('contact-idcard').value;
+    stu.contact.guard1 = document.getElementById('contact-guard1').value;
+    stu.contact.guard2 = document.getElementById('contact-guard2').value;
+    stu.contact.remark = document.getElementById('contact-remark').value;
+    const img = document.getElementById('contact-photo-preview');
+    if (img.style.display === 'block' && img.src.startsWith('blob:')) {
+        stu.contact.photo = img.src;
+    }
+    saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
+    alert('保存成功');
+    closeModal('#contact-edit-modal');
+};
+
+document.getElementById('user-manage-btn').onclick = () => {
+    renderUserManageList();
+    document.getElementById('user-manage-modal').style.display = 'block';
+};
+
 document.getElementById('statistics-btn').onclick=function exportStatsTable(){
     if(document.getElementById('statistics-btn').classList.contains('disabled-btn'))return;
     const list=students.filter(x=>x.red>0).sort((a,b)=>b.red-a.red);
@@ -1781,11 +2045,17 @@ document.getElementById('statistics-btn').onclick=function exportStatsTable(){
     let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${ffn}</title><style>body{padding:20px;background:#f7fafc}table{width:100%;border-collapse:collapse;background:white;border-radius:8px}th{background:#1e88e5;color:white;padding:10px}td{padding:10px;border:2px solid #333}</style></head><body><h2>${ffn}</h2><table><tr><th>排名</th><th>姓名</th><th>次数</th><th>首次</th></tr>`;
     list.forEach((it,i)=>{h+=`<tr><td>${i+1}</td><td>${it.name}</td><td>${it.red}</td><td>${it.firstTime||''}</td></tr>`;});
     h+=`</table></body></html>`;
-    let sl=cloudGet(CLOUD_KEYS.FILES)||[];
-    sl.push({name:ffn,c:h,t:new Date().toLocaleString()});
-    cloudSet(CLOUD_KEYS.FILES, sl);
-    window.open(URL.createObjectURL(new Blob([h],{type:'text/html'})),'_blank');
-    alert('已保存到云端');
+    
+    let cloudFiles = cloudGet(CLOUD_KEYS.FILES) || {};
+    cloudFiles[ffn] = {
+        title: ffn,
+        ct: new Date().toLocaleString(),
+        c: h
+    };
+    cloudSet(CLOUD_KEYS.FILES, cloudFiles);
+    
+    window.open(URL.createObjectURL(new Blob([h],{type:'text/html'})));
+    alert('已保存到量化档案！');
 };
 
 function parseAnyFile(file, callback) {
@@ -2124,168 +2394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('monitor-name').value = '';
         document.getElementById('monitor-pwd').value = '123456';
         document.getElementById('monitor-auth-modal').style.display = 'block';
-    };
-    document.getElementById('logout-btn').onclick = () => location.reload();
-    document.getElementById('switch-class-btn').onclick = openAdminClassSelect;
-    document.getElementById('batch-create-btn').onclick = openBatchCreateModal;
-    
-    document.getElementById('config-btn').onclick = () => {
-        document.getElementById('cfg-classname').value = classConfig.className;
-        document.getElementById('cfg-rows').value = classConfig.rows;
-        document.getElementById('cfg-cols').value = classConfig.cols;
-        document.getElementById('cfg-aisles').value = classConfig.aisles.join(',');
-        document.getElementById('config-modal').style.display = 'block';
-    };
-    document.getElementById('smart-seat-btn').onclick = () => {
-        document.getElementById('smart-seat-modal').style.display='block';
-    };
-    document.getElementById('run-smart-seat').onclick=smartSortSeats;
-    
-    document.getElementById('print-seat-btn').onclick = () => {
-        closeModal('#config-modal');
-        document.getElementById('print-choice-modal').style.display = 'block';
-    };
-    document.getElementById('print-student-btn').onclick = () => {
-        printSeatLayout(true);
-    };
-    document.getElementById('print-teacher-btn').onclick = () => {
-        printSeatLayout(false);
-    };
-    
-    document.getElementById('import-btn').onclick = () => {
-        document.getElementById('import-modal').style.display = 'block';
-    };
-    document.getElementById('rule-set-btn').onclick = () => {
-        renderRuleList();
-        document.getElementById('rule-modal').style.display = 'block';
-    };
-
-    document.getElementById('save-config').onclick = () => {
-        const cn = document.getElementById('cfg-classname').value;
-        const r = +document.getElementById('cfg-rows').value;
-        const c = +document.getElementById('cfg-cols').value;
-        const a = document.getElementById('cfg-aisles').value.split(',').map(Number).filter(Boolean);
-        
-        classConfig = { 
-            ...classConfig, 
-            className: cn, 
-            rows: r, 
-            cols: c, 
-            aisles: a 
-        };
-        
-        document.getElementById('class-name').textContent = cn;
-        selectedStudents = [];
-        initStudents(true);
-        renderCols();
-        renderSeats();
-        saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
-        closeModal('#config-modal');
-        alert("座次表已更新到云端！");
-    };
-
-    document.getElementById('red-light-btn').onclick = () => {
-        if (document.getElementById('red-light-btn').classList.contains('disabled-btn')) return;
-        if (!selectedStudents.length) { alert('请选择学生'); return; }
-        const s = selectedStudents[0];
-        s.red++;
-        if (!s.firstTime) {
-            const d = new Date();
-            s.firstTime = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-        }
-        selectedStudents = [];
-        renderSeats();
-        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
-        let arr = students.filter(x => x.red > 0).sort((a, b) => b.red - a.red);
-        let h = '';
-        arr.forEach((x, i) => {
-            h += `${i + 1}、${x.name} ${x.red}次 ${x.firstTime}<br>`;
-        });
-        document.getElementById('red-stats').innerHTML = h || '无记录';
-        document.getElementById('red-modal').style.display = 'block';
-    };
-    document.getElementById('close-red').onclick = () => closeModal('#red-modal');
-    document.getElementById('clear-btn').onclick = () => {
-        if (document.getElementById('clear-btn').classList.contains('disabled-btn')) return;
-        students.forEach(s => {
-            s.red = 0;
-            s.firstTime = '';
-            s.isRose = false;
-        });
-        selectedStudents = [];
-        renderSeats();
-        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
-    };
-    document.querySelectorAll('.close').forEach(b => {
-        b.onclick = () => document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-    });
-    function renderRuleList() {
-        const w = document.getElementById('rule-list');
-        if (!w) return;
-        w.innerHTML = '';
-        classConfig.rules.forEach((ru, i) => {
-            const d = document.createElement('div');
-            d.className = 'rule-item';
-            d.innerHTML = `<input type="text" value="${ru.name}" class="border p-1 w-32 rule-name"><input type="number" value="${ru.score}" class="border p-1 w-16 rule-score"><button onclick="delRule(${i})" class="bg-danger text-white px-1 rounded text-xs">删除</button>`;
-            w.appendChild(d);
-        });
-    }
-    window.delRule = i => {
-        classConfig.rules.splice(i, 1);
-        renderRuleList();
-    };
-    document.getElementById('add-rule').onclick = () => {
-        classConfig.rules.push({ name: '新项', score: -1 });
-        renderRuleList();
-    };
-    document.getElementById('save-rule').onclick = () => {
-        const nn = document.querySelectorAll('.rule-name');
-        const ss = document.querySelectorAll('.rule-score');
-        const ru = [];
-        for (let i = 0; i < nn.length; i++) ru.push({ name: nn[i].value, score: +ss[i].value });
-        classConfig.rules = ru;
-        saveTeamData(CLOUD_KEYS.CONFIG, currentUser.teamName, classConfig);
-        alert('保存成功');
-        closeModal('#rule-modal');
-    };
-
-    document.getElementById('contact-photo').addEventListener('change', e => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-            const img = document.getElementById('contact-photo-preview');
-            img.src = ev.target.result;
-            img.style.display = 'block';
-        };
-        r.readAsDataURL(f);
-    });
-    document.getElementById('save-contact-info').onclick = () => {
-        const name = document.getElementById('contact-name').value;
-        const stu = students.find(s => s.name === name);
-        if (!stu) {
-            alert('学生不存在');
-            return;
-        }
-        stu.contact.gender = document.getElementById('contact-gender').value;
-        stu.contact.age = document.getElementById('contact-age').value;
-        stu.contact.address = document.getElementById('contact-address').value;
-        stu.contact.idcard = document.getElementById('contact-idcard').value;
-        stu.contact.guard1 = document.getElementById('contact-guard1').value;
-        stu.contact.guard2 = document.getElementById('contact-guard2').value;
-        stu.contact.remark = document.getElementById('contact-remark').value;
-        const img = document.getElementById('contact-photo-preview');
-        if (img.style.display === 'block' && img.src.startsWith('blob:')) {
-            stu.contact.photo = img.src;
-        }
-        saveTeamData(CLOUD_KEYS.STUDENTS, currentUser.teamName, students);
-        alert('保存成功');
-        closeModal('#contact-edit-modal');
-    };
-
-    document.getElementById('user-manage-btn').onclick = () => {
-        renderUserManageList();
-        document.getElementById('user-manage-modal').style.display = 'block';
     };
 });
 </script>
